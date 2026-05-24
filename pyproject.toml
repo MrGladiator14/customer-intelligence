@@ -1,0 +1,31 @@
+[project]
+name = "meridian-customer-intelligence"
+version = "0.1.0"
+description = "Meridian Financial Customer Intelligence Platform — ML + RAG unified serving"
+requires-python = ">=3.10"
+dependencies = [
+    "chromadb>=1.5.9",
+    "fastapi>=0.136.3",
+    "httpx>=0.27",
+    "joblib>=1.5.3",
+    "langchain-nvidia-ai-endpoints>=1.4.0",
+    "langgraph>=1.2.1",
+    "lightgbm>=4.6.0",
+    "matplotlib>=3.10.9",
+    "mlflow>=3.12.0",
+    "numpy>=2.2.6",
+    "pandas>=2.3.3",
+    "pydantic>=2.13.4",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=0.23",
+    "python-dotenv>=1.2.2",
+    "python-multipart>=0.0.29",
+    "scikit-learn>=1.7.2",
+    "tokenizers>=0.22.0,<=0.23.0",
+    "uvicorn[standard]>=0.47.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short"

@@ -1,0 +1,11 @@
+customer_id,age,education,job,balance,duration,complaint,converted
+CUST001,34,tertiary,management,1500.5,240,Extremely disappointed with the high transaction fees charged on my savings account without prior notice. [Doc-101],1
+CUST002,45,secondary,technician,450.0,90,I had a very long delay when trying to transfer money using the mobile app during the weekend. [Doc-102],0
+CUST003,28,tertiary,self-employed,12000.0,500,The customer support team took over three days to respond to my fraudulent transaction query. Unacceptable! [Doc-103],1
+CUST004,52,primary,blue-collar,-120.5,15,My debit card was blocked without any reason while I was trying to purchase groceries. [Doc-104],0
+CUST005,39,secondary,services,3500.25,310,The monthly bank statements are showing incorrect balance. The fees are not transparently detailed. [Doc-105],1
+CUST006,61,unknown,retired,50000.0,400,The branch staff were incredibly helpful when I had issues setting up my retirement plan savings account. [Doc-106],1
+CUST007,42,secondary,admin.,0.0,45,My online banking account was locked and the password reset link did not work for multiple hours. [Doc-107],0
+CUST008,23,tertiary,student,120.0,180,I was charged an overdraft fee even though my account balance never dropped below zero. [Doc-108],0
+CUST009,50,tertiary,entrepreneur,8900.0,600,The loan approval process takes too long. I submitted all documents weeks ago but have no response. [Doc-109],1
+CUST010,31,secondary,management,2200.75,120,Received multiple marketing calls every day despite having opted out of the telemarketing list. [Doc-110],0

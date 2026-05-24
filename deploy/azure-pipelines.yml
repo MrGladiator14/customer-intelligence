@@ -1,0 +1,107 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  azureSubscription: "Azure for Students"
+  resourceGroup: "IITGN-4"
+  location: "uaenorth"
+  acrName: "meridianciacr"
+  acrServer: "$(acrName).azurecr.io"
+  acrConnection: "meridian-ci-acr"
+  imageTag: "$(Build.BuildId)"
+
+stages:
+  - stage: Build
+    displayName: Build and Push Images
+    jobs:
+      - job: Build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Build & Push FastAPI Image
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr build \
+                  --registry $(acrName) \
+                  --image fastapi:$(imageTag) \
+                  --file Dockerfile .
+
+          - task: AzureCLI@2
+            displayName: Build & Push MLflow Image
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr build \
+                  --registry $(acrName) \
+                  --image mlflow:$(imageTag) \
+                  --file docker/Dockerfile.mlflow .
+
+          - task: AzureCLI@2
+            displayName: Build & Push Nginx UI Image
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr build \
+                  --registry $(acrName) \
+                  --image nginx-ui:$(imageTag) \
+                  --file docker/Dockerfile.ui .
+
+  - stage: Deploy
+    displayName: Deploy to Azure Container Apps
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: DeployACA
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy FastAPI App
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --resource-group $(resourceGroup) \
+                  --name fastapi-app \
+                  --image $(acrServer)/fastapi:$(imageTag) \
+                  --set-env-vars \
+                    NVIDIA_API_KEY=secretref:nvidia-api-key \
+                    MLFLOW_TRACKING_URI="sqlite:////app/mlflow.db"
+
+          - task: AzureCLI@2
+            displayName: Deploy MLflow UI
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --resource-group $(resourceGroup) \
+                  --name mlflow-ui \
+                  --image $(acrServer)/mlflow:$(imageTag)
+
+          - task: AzureCLI@2
+            displayName: Deploy Nginx UI
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --resource-group $(resourceGroup) \
+                  --name nginx-ui \
+                  --image $(acrServer)/nginx-ui:$(imageTag)

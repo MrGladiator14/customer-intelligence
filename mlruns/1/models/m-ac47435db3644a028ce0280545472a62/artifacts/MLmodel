@@ -1,0 +1,23 @@
+artifact_path: /home/bryson/dev/week-13/customer-intelligence/mlruns/1/models/m-ac47435db3644a028ce0280545472a62/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.pkl
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMClassifier
+    serialization_format: cloudpickle
+    skops_trusted_types: null
+  python_function:
+    data: model.pkl
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.13.12
+mlflow_version: 3.12.0
+model_id: m-ac47435db3644a028ce0280545472a62
+model_size_bytes: 34449
+model_uuid: m-ac47435db3644a028ce0280545472a62
+prompts: null
+run_id: 23758cc521be420aaae1dc1caa6b4825
+utc_time_created: '2026-05-24 10:54:47.677962'

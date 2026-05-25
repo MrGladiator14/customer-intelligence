@@ -1,8 +1,8 @@
 # ── Data & Artifacts (never commit) ──────────────────
 
 # ── MLflow local tracking ───────────────────────────
-mlruns/
-mlartifacts/
+# mlruns/
+# mlartifacts/
 
 # ── Secrets ─────────────────────────────────────────
 .env

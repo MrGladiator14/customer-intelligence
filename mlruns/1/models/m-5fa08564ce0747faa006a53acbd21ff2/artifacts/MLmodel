@@ -1,0 +1,23 @@
+artifact_path: /home/bryson/dev/week-13/customer-intelligence/mlruns/1/models/m-5fa08564ce0747faa006a53acbd21ff2/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.12
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.12.0
+model_id: m-5fa08564ce0747faa006a53acbd21ff2
+model_size_bytes: 882
+model_uuid: m-5fa08564ce0747faa006a53acbd21ff2
+prompts: null
+run_id: 95a0cc0946b34d47bbacd5c635f42ebf
+utc_time_created: '2026-05-24 10:54:46.854283'

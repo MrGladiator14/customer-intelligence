@@ -6,6 +6,23 @@ Leveraging a modular multi-container architecture fronted by a single-origin rev
 1. **Predictive ML Lane**: Classifies customer conversion likelihood using structured demographic and behavioral data (LightGBM vs. Logistic Regression baseline with a relative promotion gate).
 2. **Generative RAG Lane**: Analyzes customer complaints, retrieves contextually similar historic records from a ChromaDB vector store, and synthesizes grounded, cited responses via a stateful LangGraph agent.
 
+
+---
+
+## Live Deployment
+
+The platform is deployed and running on Azure Container Apps:
+* **Live Application URL**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/)
+* **MLflow Tracing & Observability Portal**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces)
+
+---
+
+## Demo Video
+
+Watch the platform walkthrough and demonstration video:
+* [Google Drive Walkthrough Video](https://drive.google.com/file/d/1d4b3FLCFSxIuEpy5EjUSMoTCoS2nWaAW/view?usp=sharing)
+* Local walkthrough asset: `loom-demo.mp4`
+
 ---
 
 ## System Architecture

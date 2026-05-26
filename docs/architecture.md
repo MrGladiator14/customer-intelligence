@@ -1,4 +1,4 @@
-# Meridian Customer Intelligence Platform — System Architecture Document
+# Meridian Customer Intelligence Platform - System Architecture Document
 
 This document provides a formal and concise architectural overview of the **Meridian Customer Intelligence Platform**, detailing its component structures, data pipelines, and design patterns.
 

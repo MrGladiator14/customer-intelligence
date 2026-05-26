@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Model Training."""
+"""Meridian Customer Intelligence Platform - Model Training."""
 
 import logging
 import matplotlib.pyplot as plt
@@ -57,7 +57,7 @@ def plot_and_save_calibration(y_true, y_prob, model_name: str, filepath: str):
     plt.plot([0, 1], [0, 1], linestyle="--", color="gray", label="Perfect Calibration")
     plt.xlabel("Mean Predicted Probability")
     plt.ylabel("Fraction of Positives")
-    plt.title(f"Calibration Curve — {model_name}")
+    plt.title(f"Calibration Curve - {model_name}")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()

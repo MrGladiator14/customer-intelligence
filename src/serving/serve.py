@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — FastAPI Serving Layer."""
+"""Meridian Customer Intelligence Platform - FastAPI Serving Layer."""
 
 from contextlib import asynccontextmanager
 import logging

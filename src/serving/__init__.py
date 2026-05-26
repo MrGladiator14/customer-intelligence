@@ -1,1 +1,1 @@
-"""Serving — FastAPI production endpoints."""
+"""Serving - FastAPI production endpoints."""

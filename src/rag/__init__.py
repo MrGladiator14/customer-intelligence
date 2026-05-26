@@ -1,1 +1,1 @@
-"""RAG — LangGraph agent and vector indexing."""
+"""RAG - LangGraph agent and vector indexing."""

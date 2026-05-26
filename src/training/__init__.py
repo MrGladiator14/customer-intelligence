@@ -1,1 +1,1 @@
-"""Training — model experimentation and promotion."""
+"""Training - model experimentation and promotion."""

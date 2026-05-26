@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Dummy Data Generator."""
+"""Meridian Customer Intelligence Platform - Dummy Data Generator."""
 
 import csv
 from src.config import DATA_DIR

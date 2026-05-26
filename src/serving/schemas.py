@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Pydantic Schemas."""
+"""Meridian Customer Intelligence Platform - Pydantic Schemas."""
 
 from typing import List, Optional
 from pydantic import BaseModel, Field

@@ -66,7 +66,7 @@ zip -r "$DEPLOY_ZIP" . \
     -x ".pytest_cache/*" \
     -x "*.pyc" > /dev/null
 
-echo "==> Deploying zip (Kudu source config-zip — may take several minutes)"
+echo "==> Deploying zip (Kudu source config-zip - may take several minutes)"
 az webapp deployment source config-zip \
     --resource-group "$RG" \
     --name "$APP_NAME" \
@@ -92,4 +92,4 @@ echo "║  API : https://${APP_NAME}.azurewebsites.net/api/health     ║"
 echo "║  MLflow : https://${APP_NAME}.azurewebsites.net/mlflow/     ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "All services are same-origin — no CORS issues."
+echo "All services are same-origin - no CORS issues."

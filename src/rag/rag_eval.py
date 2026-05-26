@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — RAG Offline Evaluation Loop."""
+"""Meridian Customer Intelligence Platform - RAG Offline Evaluation Loop."""
 
 import logging
 

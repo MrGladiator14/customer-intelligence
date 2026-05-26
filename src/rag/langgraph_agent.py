@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — LangGraph RAG Agent."""
+"""Meridian Customer Intelligence Platform - LangGraph RAG Agent."""
 
 import logging
 import time

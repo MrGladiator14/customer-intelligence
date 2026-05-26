@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Pandera Schema & Validation."""
+"""Meridian Customer Intelligence Platform - Pandera Schema & Validation."""
 
 import logging
 import pandas as pd
@@ -91,7 +91,7 @@ def validate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         return validated_df
     except pa.errors.SchemaErrors as err:
         logger.error("Pandera validation failed with schema errors.")
-        # Log detail of errors — use getattr for cross-version Pandera compatibility
+        # Log detail of errors - use getattr for cross-version Pandera compatibility
         try:
             for failure in err.failure_cases.itertuples():
                 col = getattr(failure, "column", getattr(failure, "schema_context", "?"))

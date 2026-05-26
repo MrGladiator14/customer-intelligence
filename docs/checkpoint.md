@@ -1,4 +1,4 @@
-# Deployment Checkpoint — 2026-05-26
+# Deployment Checkpoint - 2026-05-26
 
 ## Infrastructure Overview
 

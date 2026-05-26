@@ -1,7 +1,7 @@
 [project]
 name = "meridian-customer-intelligence"
 version = "0.1.0"
-description = "Meridian Financial Customer Intelligence Platform — ML + RAG unified serving"
+description = "Meridian Financial Customer Intelligence Platform - ML + RAG unified serving"
 requires-python = ">=3.10"
 dependencies = [
     "chromadb>=1.5.9",

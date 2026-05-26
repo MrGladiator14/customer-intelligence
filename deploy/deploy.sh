@@ -100,7 +100,7 @@ az containerapp create \
     --max-replicas 1 \
     -o table
 
-# ── Deploy Nginx UI (ingress — external) ────────────────────────────────────
+# ── Deploy Nginx UI (ingress - external) ────────────────────────────────────
 echo "==> Deploying Nginx UI: $NGINX_APP"
 az containerapp create \
     --resource-group "$RESOURCE_GROUP" \
@@ -133,4 +133,4 @@ echo "║  MLflow UI        : https://${UI_FQDN}/mlflow/      ║"
 echo "║  API (direct)     : https://${UI_FQDN}/api/health   ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "All services are same-origin behind nginx — no CORS issues."
+echo "All services are same-origin behind nginx - no CORS issues."

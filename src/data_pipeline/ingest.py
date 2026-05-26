@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Ingestion Logic."""
+"""Meridian Customer Intelligence Platform - Ingestion Logic."""
 
 import logging
 from pathlib import Path

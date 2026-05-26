@@ -1,1 +1,1 @@
-"""Data pipeline — ingestion and validation."""
+"""Data pipeline - ingestion and validation."""

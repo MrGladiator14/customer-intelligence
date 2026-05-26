@@ -1,5 +1,6 @@
 mlruns/
 mlartifacts/
+./docs/checkpoint.md
 .env
 .env.*
 .venv/

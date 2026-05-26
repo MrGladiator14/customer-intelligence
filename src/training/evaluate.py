@@ -1,4 +1,4 @@
-"""Meridian Customer Intelligence Platform — Model Evaluation & Promotion Gate."""
+"""Meridian Customer Intelligence Platform - Model Evaluation & Promotion Gate."""
 
 import logging
 import sys

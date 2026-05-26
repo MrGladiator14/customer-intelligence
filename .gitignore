@@ -1,14 +1,12 @@
-# ── Data & Artifacts (never commit) ──────────────────
-
-# ── MLflow local tracking ───────────────────────────
-# mlruns/
-# mlartifacts/
-
-# ── Secrets ─────────────────────────────────────────
+mlruns/
+mlartifacts/
 .env
 .env.*
-
-# ── Python ──────────────────────────────────────────
+.venv/
+venv/
+*.db
+*.sqlite
+*.mp4
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,21 +14,11 @@ __pycache__/
 dist/
 build/
 *.egg
-.venv/
-venv/
-
-# ── IDE ─────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# ── OS ──────────────────────────────────────────────
 .DS_Store
 Thumbs.db
-
-# ── Docker ──────────────────────────────────────────
 *.log
-
-# ── Antigravity CLI ─────────────────────────────────
 .antigravitycli/

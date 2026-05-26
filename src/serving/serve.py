@@ -1,5 +1,6 @@
 """Meridian Customer Intelligence Platform — FastAPI Serving Layer."""
 
+from contextlib import asynccontextmanager
 import logging
 import io
 import time
@@ -28,19 +29,42 @@ from src.serving.schemas import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+# ── Lifespan (replaces deprecated @app.on_event) ────────────────────────────
+@asynccontextmanager
+async def lifespan(app_instance):
+    global INFERENCE_RUN
+    # Startup
+    try:
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(MLFLOW_INFERENCE_EXPERIMENT_NAME)
+        INFERENCE_RUN = mlflow.start_run(run_name="Serving")
+        logger.info("MLflow inference tracking initialized (experiment=%s, run=%s).",
+                     MLFLOW_INFERENCE_EXPERIMENT_NAME, INFERENCE_RUN.info.run_id)
+    except Exception as e:
+        logger.warning("Failed to initialize MLflow inference tracking: %s", e)
+    yield
+    # Shutdown
+    if INFERENCE_RUN is not None:
+        try:
+            mlflow.end_run()
+        except Exception:
+            pass
+    logger.info("MLflow inference tracking shut down.")
+
 app = FastAPI(
     title="Meridian Customer Intelligence Platform API",
     description="Unified API combining structured predictive ML modeling with generative RAG complaint analysis.",
-    version="2.0"
+    version="2.0",
+    lifespan=lifespan
 )
 
-# CORS middleware to allow requests from any origin (for development)
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Serve the UI index.html at the root
@@ -54,29 +78,6 @@ async def serve_ui():
 # ── MLflow Inference Tracking ────────────────────────────────────────────────
 INFERENCE_RUN = None
 _inference_step = 0
-
-
-@app.on_event("startup")
-def startup_mlflow():
-    global INFERENCE_RUN
-    try:
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment(MLFLOW_INFERENCE_EXPERIMENT_NAME)
-        INFERENCE_RUN = mlflow.start_run(run_name="Serving")
-        logger.info("MLflow inference tracking initialized (experiment=%s, run=%s).",
-                     MLFLOW_INFERENCE_EXPERIMENT_NAME, INFERENCE_RUN.info.run_id)
-    except Exception as e:
-        logger.warning("Failed to initialize MLflow inference tracking: %s", e)
-
-
-@app.on_event("shutdown")
-def shutdown_mlflow():
-    if INFERENCE_RUN is not None:
-        try:
-            mlflow.end_run()
-        except Exception:
-            pass
-    logger.info("MLflow inference tracking shut down.")
 
 
 def _log_inference(model_name: str, batch_size: int, n_class_1: int, avg_prob: float, latency_ms: float):
@@ -141,22 +142,23 @@ def perform_inference(model, df: pd.DataFrame) -> List[PredictionResponse]:
     X, _ = preprocess_dataframe(df)
     
     # Run predictions
-    preds = model.predict(X)
-    probs = model.predict_proba(X)[:, 1]
+    import numpy as np
+    preds = np.asarray(model.predict(X))
+    probs = np.asarray(model.predict_proba(X))[:, 1]
     
     responses = []
-    for idx, row in df.iterrows():
-        prob = float(probs[idx])
+    for i, (idx, row) in enumerate(df.iterrows()):
+        prob = float(probs[i])
         responses.append(PredictionResponse(
             customer_id=str(row["customer_id"]),
-            conversion_prediction=int(preds[idx]),
+            conversion_prediction=int(preds[i]),
             conversion_probability=round(prob, 4),
             probability_band=get_probability_band(prob)
         ))
     return responses
 
 # API router with /api prefix (matching the UI JS)
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
 

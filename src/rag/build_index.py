@@ -30,10 +30,15 @@ class HuggingFaceEmbeddings:
     def embed_query(self, text):
         return self.embed_documents([text])[0]
 
+_embedding_engine = None
+
 def get_embedding_engine():
     """Returns HuggingFace embeddings."""
-    logger.info("Initializing HuggingFace Embeddings...")
-    return HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    global _embedding_engine
+    if _embedding_engine is None:
+        logger.info("Initializing HuggingFace Embeddings (first time)...")
+        _embedding_engine = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    return _embedding_engine
 
 # ── Regex Helper to extract structural Doc ID ──────────────────────────────
 def extract_doc_id(text: str, default_id: str) -> str:
@@ -102,11 +107,7 @@ def build_chroma_index():
     
     # Compute embeddings
     logger.info("Computing embeddings for complaints...")
-    if hasattr(embedding_engine, "embed_documents"):
-        computed_embeddings = embedding_engine.embed_documents(documents)
-    else:
-        # Langchain core Embeddings interface
-        computed_embeddings = embedding_engine.embed_documents(documents)
+    computed_embeddings = embedding_engine.embed_documents(documents)
         
     embeddings.extend(computed_embeddings)
     

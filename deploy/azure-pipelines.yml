@@ -32,7 +32,7 @@ stages:
                 az acr build \
                   --registry $(acrName) \
                   --image fastapi:$(imageTag) \
-                  --file Dockerfile .
+                  --file docker/Dockerfile.fastapi .
 
           - task: AzureCLI@2
             displayName: Build & Push MLflow Image

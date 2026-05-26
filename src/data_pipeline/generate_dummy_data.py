@@ -1,12 +1,7 @@
 """Meridian Customer Intelligence Platform — Dummy Data Generator."""
 
 import csv
-import os
-from pathlib import Path
-
-# Centralized data folder
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+from src.config import DATA_DIR
 
 # 10-row training data
 TRAIN_RECORDS = [

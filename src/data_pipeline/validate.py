@@ -91,10 +91,13 @@ def validate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         return validated_df
     except pa.errors.SchemaErrors as err:
         logger.error("Pandera validation failed with schema errors.")
-        # Log detail of errors
-        for failure in err.failure_cases.itertuples():
-            logger.error(
-                f"Column: {failure.column}, Constraint: {failure.check}, "
-                f"Failed Value: {failure.failure_case}"
-            )
+        # Log detail of errors — use getattr for cross-version Pandera compatibility
+        try:
+            for failure in err.failure_cases.itertuples():
+                col = getattr(failure, "column", getattr(failure, "schema_context", "?"))
+                constraint = getattr(failure, "check", "?")
+                value = getattr(failure, "failure_case", "?")
+                logger.error(f"Column: {col}, Constraint: {constraint}, Failed Value: {value}")
+        except Exception:
+            logger.error(f"Validation failure details:\n{err.failure_cases.to_string()}")
         raise err

@@ -4,6 +4,8 @@ import logging
 import time
 from typing import List, Dict, Any, TypedDict
 from langgraph.graph import StateGraph, END
+import chromadb
+import mlflow
 
 from src.config import (
     DATA_DIR,
@@ -55,6 +57,7 @@ def _get_llm_client():
             return None
     return _llm_client
 
+@mlflow.trace(span_type="LLM")
 def call_nvidia_llama(prompt: str) -> str:
     """Invokes the NVIDIA Build Llama 70B model or falls back to mock."""
     if USE_MOCK_LLM or not NVIDIA_API_KEY:
@@ -97,9 +100,9 @@ def call_nvidia_llama(prompt: str) -> str:
 
 # ── Graph Nodes ─────────────────────────────────────────────────────────────
 
+@mlflow.trace(span_type="RETRIEVER")
 def node_retrieve(state: AgentState) -> Dict[str, Any]:
     """Retrieves top-K complaints from ChromaDB based on the query."""
-    import chromadb
     logger.info(f"Node [Retrieve]: Querying ChromaDB for '{state['question']}'")
     start_time = time.time()
     
@@ -116,10 +119,7 @@ def node_retrieve(state: AgentState) -> Dict[str, Any]:
         
     # 2. Embed Query
     embedding_engine = get_embedding_engine()
-    if hasattr(embedding_engine, "embed_query"):
-        query_embedding = embedding_engine.embed_query(state["question"])
-    else:
-        query_embedding = embedding_engine.embed_query(state["question"])
+    query_embedding = embedding_engine.embed_query(state["question"])
         
     # 3. Query
     results = collection.query(
@@ -135,7 +135,7 @@ def node_retrieve(state: AgentState) -> Dict[str, Any]:
         metadatas = results["metadatas"][0] if "metadatas" in results else [{}] * len(documents_list)
         
         for doc_text, dist, meta in zip(documents_list, distances, metadatas):
-            # Chroma returns L2 distances. For cosine space, cosine similarity is 1 - distance
+            # ChromaDB with cosine space returns cosine distance; similarity = 1 - distance
             similarity = 1.0 - dist
             docs.append({
                 "text": doc_text,
@@ -150,6 +150,7 @@ def node_retrieve(state: AgentState) -> Dict[str, Any]:
         "nodes_visited": state.get("nodes_visited", []) + ["retrieve"]
     }
 
+@mlflow.trace(span_type="TOOL")
 def node_evaluate_relevance(state: AgentState) -> Dict[str, Any]:
     """Evaluates the relevance of the retrieved documents."""
     logger.info("Node [Evaluate Relevance]: Assessing retrieved documents...")
@@ -180,6 +181,7 @@ def route_relevance(state: AgentState) -> str:
     else:
         return "refuse"
 
+@mlflow.trace(span_type="TOOL")
 def node_refuse(state: AgentState) -> Dict[str, Any]:
     """Node that handles out-of-domain / irrelevant questions by refusing."""
     logger.info("Node [Refuse]: Executing refusal response...")
@@ -189,6 +191,7 @@ def node_refuse(state: AgentState) -> Dict[str, Any]:
         "nodes_visited": state.get("nodes_visited", []) + ["refuse"]
     }
 
+@mlflow.trace(span_type="LLM")
 def node_generate(state: AgentState) -> Dict[str, Any]:
     """Node that generates a response strictly citing retrieved source documents."""
     logger.info("Node [Generate]: Synthesizing answer using NVIDIA Llama 70B...")
@@ -265,8 +268,16 @@ def get_rag_agent_graph():
     
     return workflow.compile()
 
+@mlflow.trace(name="LangGraph RAG Agent", span_type="AGENT")
 def run_rag_agent(question: str) -> Dict[str, Any]:
     """Wrapper function to run the compiled LangGraph and track overall latency."""
+    try:
+        from src.config import MLFLOW_TRACKING_URI, MLFLOW_INFERENCE_EXPERIMENT_NAME
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(MLFLOW_INFERENCE_EXPERIMENT_NAME)
+    except Exception as e:
+        logger.warning(f"Failed to initialize MLflow client inside RAG agent: {e}")
+        
     start_time = time.time()
     
     graph = get_rag_agent_graph()

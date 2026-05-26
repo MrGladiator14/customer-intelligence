@@ -1,7 +1,6 @@
 """Meridian Customer Intelligence Platform — RAG Offline Evaluation Loop."""
 
 import logging
-import sys
 
 from src.rag.langgraph_agent import run_rag_agent
 
@@ -111,7 +110,8 @@ def run_evaluation_loop():
         latency = res["latency_ms"]
         relevance_score = res["relevance_score"]
         
-        is_refusal = response.strip() == "Refused: Evidence insufficient to ground an answer."
+        # Use startswith so variants like "Refused: ... (Error in LLM upstream connection)" are caught
+        is_refusal = response.strip().startswith("Refused:")
         
         # Check correctness
         status = "PASS"

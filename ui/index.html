@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer CRM</title>
     <link rel="icon" type="image/png" href="https://img.icons8.com/pastel-glyph/64/online-support.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Minimalistic Pastel Theme, No Shadows, No Gradients */
         :root {
@@ -633,10 +634,16 @@
                             </div>
                             <button onclick="submitDriftCalculation()" style="width: auto;">Calculate Drift</button>
                             <div id="drift-loading" class="hidden" style="margin-top: 0.5rem; font-weight: bold;">Calculating...</div>
-                            <div id="drift-results" class="result-box hidden" style="margin-top: 0.5rem;">
-                                <h5 style="margin-top: 0; margin-bottom: 0.5rem;">Drift Results</h5>
-                                <pre id="drift-output" style="background: var(--card-bg); padding: 1rem; border: 2px solid var(--border-color); font-size: 0.85rem;"></pre>
-                            </div>
+                             <div id="drift-results" class="result-box hidden" style="margin-top: 0.5rem;">
+                                 <h5 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">Drift Analysis Results</h5>
+                                 <div id="drift-visual-container" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                                     <!-- Dynamic cards populated here -->
+                                 </div>
+                                 <details style="cursor: pointer; margin-top: 1rem;">
+                                     <summary style="font-weight: bold; color: var(--text-muted); font-size: 0.85rem; outline: none;">View Raw JSON Output</summary>
+                                     <pre id="drift-output" style="background: var(--card-bg); padding: 1rem; border: 2px solid var(--border-color); font-size: 0.85rem; margin-top: 0.5rem; max-height: 200px; overflow-y: auto;"></pre>
+                                 </details>
+                             </div></div>
                         </div>
                     </div>
                 </div>
@@ -1082,10 +1089,122 @@
                 const data = await res.json();
                 document.getElementById('drift-loading').classList.add('hidden');
 
-                if (res.ok) {
-                    document.getElementById('drift-results').classList.remove('hidden');
-                    document.getElementById('drift-output').innerText = JSON.stringify(data.drift_analysis, null, 2);
-                } else {
+                 if (res.ok) {
+                     document.getElementById('drift-results').classList.remove('hidden');
+                     document.getElementById('drift-output').innerText = JSON.stringify(data.drift_analysis, null, 2);
+
+                     // Render graphical cards
+                     const container = document.getElementById('drift-visual-container');
+                     container.innerHTML = '';
+
+                     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+                     for (const [feat, metrics] of Object.entries(data.drift_analysis)) {
+                         const psiVal = metrics.psi;
+                         const pVal = metrics.ks_p_value;
+                         const status = metrics.status;
+                         const refMean = metrics.ref_mean;
+                         const prodMean = metrics.prod_mean;
+
+                         let badgeClass = 'badge';
+                         let barColor = 'var(--pastel-green)';
+                         if (status.includes('SEVERE')) {
+                             badgeClass += ' Low';
+                             barColor = 'var(--pastel-red)';
+                         } else if (status.includes('MODERATE')) {
+                             badgeClass += ' Medium';
+                             barColor = 'var(--pastel-yellow)';
+                         } else {
+                             badgeClass += ' High';
+                             barColor = 'var(--pastel-green)';
+                         }
+
+                         const psiPercent = Math.min(100, Math.max(5, (psiVal / 0.5) * 100));
+
+                         const cardHtml = `
+                             <div class="card" style="border: 2px solid var(--border-color); background-color: var(--card-bg); padding: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; margin: 0; text-align: left;">
+                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.2rem;">
+                                     <h4 style="margin: 0; font-size: 1.1rem; text-transform: capitalize; font-weight: bold;">${feat}</h4>
+                                     <span class="${badgeClass}">${status}</span>
+                                 </div>
+
+                                 <div>
+                                     <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                                         <strong>PSI (Stability Index):</strong>
+                                         <span>${psiVal.toFixed(4)}</span>
+                                     </div>
+                                     <div style="width: 100%; height: 10px; background-color: var(--sidebar-bg); border: 1px solid var(--border-color); box-sizing: border-box;">
+                                         <div style="width: ${psiPercent}%; height: 100%; background-color: ${barColor};"></div>
+                                     </div>
+                                 </div>
+
+                                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                                     <strong>KS Test p-value:</strong>
+                                     <span>${pVal < 0.0001 ? '&lt; 0.0001' : pVal.toFixed(4)}</span>
+                                 </div>
+
+                                 <div style="margin-top: 0.2rem;">
+                                     <div style="font-size: 0.85rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                                         <strong>Means Comparison:</strong>
+                                         <span style="font-size: 0.75rem; color: var(--text-muted);">Ref: ${refMean} | Prod: ${prodMean}</span>
+                                     </div>
+                                     <div style="height: 120px; position: relative;">
+                                         <canvas id="drift-chart-${feat}"></canvas>
+                                     </div>
+                                 </div>
+                             </div>
+                         `;
+
+                         const div = document.createElement('div');
+                         div.innerHTML = cardHtml;
+                         container.appendChild(div.firstElementChild);
+
+                         setTimeout(() => {
+                             const canvas = document.getElementById(`drift-chart-${feat}`);
+                             if (canvas) {
+                                 const ctx = canvas.getContext('2d');
+                                 new Chart(ctx, {
+                                     type: 'bar',
+                                     data: {
+                                         labels: ['Reference', 'Production'],
+                                         datasets: [{
+                                             data: [refMean, prodMean],
+                                             backgroundColor: [
+                                                 isDark ? '#4f7a4f' : '#dcedc8',
+                                                 isDark ? '#a88b32' : '#f8e5c0'
+                                             ],
+                                             borderColor: isDark ? '#e0e0e0' : '#333333',
+                                             borderWidth: 2
+                                         }]
+                                     },
+                                     options: {
+                                         responsive: true,
+                                         maintainAspectRatio: false,
+                                         plugins: {
+                                             legend: { display: false }
+                                         },
+                                         scales: {
+                                             x: {
+                                                 grid: { display: false },
+                                                 ticks: {
+                                                     color: isDark ? '#e0e0e0' : '#333333',
+                                                     font: { size: 10 }
+                                                 }
+                                             },
+                                             y: {
+                                                 grid: { color: isDark ? '#2c2c2c' : '#e0e0e0' },
+                                                 ticks: {
+                                                     color: isDark ? '#999999' : '#666666',
+                                                     font: { size: 8 }
+                                                 }
+                                             }
+                                         }
+                                     }
+                                 });
+                             }
+                         }, 50);
+                     }
+                 } else {
                     alert('Error: ' + (data.detail || 'Unknown error'));
                 }
             } catch (e) {

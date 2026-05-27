@@ -91,6 +91,7 @@ if [[ "$DEPLOY_TARGET" == "all" || "$DEPLOY_TARGET" == "fastapi" ]]; then
         --registry-server "$ACR_SERVER" \
         --target-port 8000 \
         --ingress internal \
+        --allow-insecure true \
         --secrets \
             nvidia-api-key="${NVIDIA_API_KEY:?NVIDIA_API_KEY not set}" \
         --env-vars \
@@ -114,6 +115,7 @@ if [[ "$DEPLOY_TARGET" == "all" || "$DEPLOY_TARGET" == "mlflow" ]]; then
         --registry-server "$ACR_SERVER" \
         --target-port 5000 \
         --ingress internal \
+        --allow-insecure true \
         --env-vars \
             MLFLOW_TRACKING_URI="sqlite:////app/mlflow.db" \
             MLFLOW_SERVER_CORS_ALLOWED_ORIGINS="*" \

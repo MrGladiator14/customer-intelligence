@@ -8,6 +8,7 @@ venv/
 *.db
 *.sqlite
 *.mp4
+.pytest_cache/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,4 +26,6 @@ Thumbs.db
 .antigravitycli/
 Customer_Intelligence_Platform.pdf
 todo.md
+/data/scored/
+/data/metrics_log.jsonl
 /scripts/clean.py

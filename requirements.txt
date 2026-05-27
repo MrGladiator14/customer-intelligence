@@ -11,6 +11,7 @@ uvicorn[standard]
 pydantic
 chromadb
 langgraph
+langchain-nvidia-ai-endpoints
 python-dotenv
 numpy
 matplotlib

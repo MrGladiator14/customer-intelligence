@@ -4,20 +4,20 @@
 
 | Service | Azure Resource | Status |
 |---|---|---|
-| FastAPI app | `fastapi-app` (Container App) | ✅ Healthy (Revision `fastapi-app--0000012`, `allowInsecure: true`) |
-| MLflow UI | `mlflow-ui` (Container App) | ✅ Healthy (Revision `mlflow-ui--0000021`, `allowInsecure: true`) |
-| Nginx reverse proxy | `nginx-ui` (Container App) | ✅ Healthy (Revision `nginx-ui--0000026`) |
-| Container Registry | `meridianciacr` (ACR) | ✅ Active |
-| ACA Environment | `meridian-ci-env` | ✅ Active |
-| Resource Group | `meridian-customer-intelligence` | ✅ Central India |
+| FastAPI app | `fastapi-app` (Container App) | Healthy (Revision `fastapi-app--0000012`, `allowInsecure: true`) |
+| MLflow UI | `mlflow-ui` (Container App) | Healthy (Revision `mlflow-ui--0000021`, `allowInsecure: true`) |
+| Nginx reverse proxy | `nginx-ui` (Container App) | Healthy (Revision `nginx-ui--0000026`) |
+| Container Registry | `meridianciacr` (ACR) | Active |
+| ACA Environment | `meridian-ci-env` | Active |
+| Resource Group | `meridian-customer-intelligence` | Central India |
 
 ### Public URLs
 ```
 https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io
 ```
-- `/`         → React UI (static, served by nginx) ✅ 200 OK
-- `/api/health` → FastAPI health check endpoint (proxied) ✅ 200 OK (returns valid JSON)
-- `/mlflow/`  → MLflow tracking UI (proxied) ✅ 200 OK
+- `/`         → React UI (static, served by nginx) 200 OK
+- `/api/health` → FastAPI health check endpoint (proxied) 200 OK (returns valid JSON)
+- `/mlflow/`  → MLflow tracking UI (proxied) 200 OK
 
 ---
 
@@ -52,7 +52,7 @@ https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io
 ---
 
 ## Current Status (End-to-End Success)
-- ✅ `nginx-ui` successfully routes `/api/` traffic to `fastapi-app` internally via standard HTTP.
-- ✅ `nginx-ui` successfully routes `/mlflow/` traffic to `mlflow-ui` internally.
-- ✅ End-to-end health checks return a perfect `200 OK` with JSON payloads.
-- ✅ The UI is fully functional for all real-time model predictions and LangGraph aggregate complaint insights.
+- `nginx-ui` successfully routes `/api/` traffic to `fastapi-app` internally via standard HTTP.
+- `nginx-ui` successfully routes `/mlflow/` traffic to `mlflow-ui` internally.
+- End-to-end health checks return a perfect `200 OK` with JSON payloads.
+- The UI is fully functional for all real-time model predictions and LangGraph aggregate complaint insights.

@@ -4,7 +4,7 @@ The application has been successfully deployed to Azure Container Apps! Below is
 
 ---
 
-## 🚀 Live Endpoints
+## Live Endpoints
 
 All services are running same-origin behind Nginx acting as the secure reverse proxy / API Gateway. This prevents any CORS issues.
 
@@ -14,7 +14,7 @@ All services are running same-origin behind Nginx acting as the secure reverse p
 
 ---
 
-## 🛠️ Errors Addressed & Solutions
+## Errors Addressed & Solutions
 
 During the deployment process, three key errors were identified and resolved to ensure a robust and successful deployment:
 
@@ -57,7 +57,7 @@ During the deployment process, three key errors were identified and resolved to 
 
 ---
 
-## 📦 Provisioned Architecture
+## Provisioned Architecture
 
 ```mermaid
 graph TD

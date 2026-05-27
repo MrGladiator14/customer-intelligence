@@ -23,25 +23,7 @@ from src.data_pipeline.ingest import ingest_csv
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Feature Engineering Mapping ─────────────────────────────────────────────
-JOB_MAPPING = {
-    "management": 0, "technician": 1, "self-employed": 2, "blue-collar": 3,
-    "services": 4, "retired": 5, "admin.": 6, "student": 7, "entrepreneur": 8
-}
-EDUCATION_MAPPING = {
-    "primary": 0, "secondary": 1, "tertiary": 2, "unknown": -1
-}
-
-def preprocess_dataframe(df: pd.DataFrame):
-    """Encodes categorical columns and returns feature matrix X and target y."""
-    processed = df.copy()
-    processed["job_code"] = processed["job"].map(JOB_MAPPING).fillna(-1).astype(int)
-    processed["edu_code"] = processed["education"].map(EDUCATION_MAPPING).fillna(-1).astype(int)
-    
-    feature_cols = ["age", "balance", "duration", "job_code", "edu_code"]
-    X = processed[feature_cols]
-    y = processed["converted"] if "converted" in processed.columns else None
-    return X, y
+from src.data_pipeline.features import preprocess_dataframe
 
 def compute_pr_auc(y_true, y_prob):
     """Computes the Area Under Precision-Recall Curve."""

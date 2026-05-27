@@ -14,7 +14,8 @@ from src.config import (
     PROMOTION_F1_MAX_DROP
 )
 from src.data_pipeline.ingest import ingest_csv
-from src.training.train import preprocess_dataframe, compute_pr_auc
+from src.data_pipeline.features import preprocess_dataframe
+from src.training.train import compute_pr_auc
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)

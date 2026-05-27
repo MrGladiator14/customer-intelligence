@@ -373,12 +373,15 @@
                 
                 const results = await response.json();
                 
+                // Extract predictions array (handles both BatchScoreResponse and flat array)
+                const predictions = Array.isArray(results) ? results : (results.predictions || []);
+                
                 // Create a table to display results
                 let tableHtml = '<table><thead><tr>';
                 tableHtml += '<th>Customer ID</th><th>Prediction</th><th>Probability</th><th>Probability Band</th>';
                 tableHtml += '</tr></thead><tbody>';
                 
-                results.forEach(result => {
+                predictions.forEach(result => {
                     tableHtml += `<tr>
                         <td>${result.customer_id}</td>
                         <td>${result.conversion_prediction}</td>
@@ -388,7 +391,7 @@
                 });
                 
                 tableHtml += '</tbody></table>';
-                resultDiv.innerHTML = `<h3>Batch Results (${results.length} records)</h3>${tableHtml}`;
+                resultDiv.innerHTML = `<h3>Batch Results (${predictions.length} records)</h3>${tableHtml}`;
                 resultDiv.classList.add('success');
             } catch (error) {
                 resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;

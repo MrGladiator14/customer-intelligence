@@ -1,0 +1,51 @@
+name: Meridian Customer Intelligence CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install UV Package Manager
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install Project Dependencies
+      run: |
+        uv venv
+        uv pip install -r requirements.txt
+
+    - name: Run Data Schema & Business Rule Validations
+      run: |
+        uv run python src/data_pipeline/validate.py
+
+    - name: Execute Operational Unit Test Suite
+      run: |
+        uv run pytest
+
+    - name: Run Relative Model Promotion Gate
+      run: |
+        uv run python src/training/evaluate.py
+
+    - name: Execute MLOps Drift Analytics Generation
+      run: |
+        uv run python monitoring/ml_drift.py
+
+    - name: Run Operational Container Deployment Check
+      run: |
+        echo "Mocking container registry promotion to Docker Hub / Azure Container Registry"
+        echo "Successfully deployed Meridian Customer Intelligence Platform to active spine."

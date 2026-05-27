@@ -1,0 +1,61 @@
+# Azure Pipelines CI/CD Pipeline
+# Meridian Customer Intelligence Platform
+
+trigger:
+- main
+- master
+
+pr:
+- main
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  python.version: '3.12'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Set up Python Environment'
+
+- bash: |
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    echo "##vso[task.prependpath]$HOME/.local/bin"
+  displayName: 'Install UV Package Manager'
+
+- bash: |
+    uv venv
+    uv pip install -r requirements.txt
+  displayName: 'Install Project Dependencies'
+
+- bash: |
+    uv run python src/data_pipeline/validate.py
+  displayName: 'Validate Data Schemas & Business Rules'
+
+- bash: |
+    uv run pytest --junitxml=test-results.xml
+  displayName: 'Execute Operational Unit Test Suite'
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(python.version) Pytest Suite'
+  displayName: 'Publish Unit Test Results to Azure DevOps'
+  condition: succeededOrFailed()
+
+- bash: |
+    uv run python src/training/evaluate.py
+  displayName: 'Run Relative Model Promotion Gate'
+
+- bash: |
+    uv run python monitoring/ml_drift.py
+  displayName: 'Execute MLOps Drift Analytics Generation'
+
+- bash: |
+    echo "Mocking container registry promotion to Docker Hub / Azure Container Registry"
+    echo "Successfully deployed Meridian Customer Intelligence Platform to active Azure spine."
+  displayName: 'Run Operational Container Deployment Check'

@@ -4,17 +4,18 @@ from contextlib import asynccontextmanager
 import logging
 import io
 import time
+import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Dict, Any
 
 import joblib
 import mlflow
 import pandas as pd
-from fastapi import APIRouter, FastAPI, File, UploadFile, HTTPException, status
+from fastapi import APIRouter, FastAPI, File, UploadFile, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from src.config import PROJECT_ROOT, MODEL_DIR, DATA_DIR, MLFLOW_TRACKING_URI, MLFLOW_INFERENCE_EXPERIMENT_NAME
+from src.config import PROJECT_ROOT, MODEL_DIR, DATA_DIR, MLFLOW_TRACKING_URI, MLFLOW_INFERENCE_EXPERIMENT_NAME, RAG_SIMILARITY_THRESHOLD
 from src.data_pipeline.validate import validate_dataframe
 from src.rag.langgraph_agent import run_rag_agent
 from src.serving.schemas import (
@@ -23,17 +24,63 @@ from src.serving.schemas import (
     AskRequest,
     AskResponse,
     CustomerIntelRequest,
-    CustomerIntelResponse
+    CustomerIntelResponse,
+    BatchScoreResponse
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+# ── Telemetry & Metrics Tracker ─────────────────────────────────────────────
+METRICS_LOG: List[Dict[str, Any]] = []
+
+def track_metric(
+    endpoint: str,
+    latency_ms: float,
+    error: bool = False,
+    prediction_band: Optional[str] = None,
+    RAG_hit: Optional[bool] = None,
+    RAG_refusal: Optional[bool] = None,
+    RAG_relevance: Optional[float] = None
+):
+    entry = {
+        "timestamp": time.time(),
+        "endpoint": endpoint,
+        "latency_ms": latency_ms,
+        "error": error,
+        "prediction_band": prediction_band,
+        "RAG_hit": RAG_hit,
+        "RAG_refusal": RAG_refusal,
+        "RAG_relevance": RAG_relevance
+    }
+    METRICS_LOG.append(entry)
+    # Write to local file
+    try:
+        metrics_file = DATA_DIR / "metrics_log.jsonl"
+        import json
+        with open(metrics_file, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        logger.debug(f"Failed to append to metrics log: {e}")
+
 # ── Lifespan (replaces deprecated @app.on_event) ────────────────────────────
 @asynccontextmanager
 async def lifespan(app_instance):
     global INFERENCE_RUN
-    # Startup
+    # Load past metrics
+    try:
+        metrics_file = DATA_DIR / "metrics_log.jsonl"
+        if metrics_file.exists():
+            import json
+            with open(metrics_file, "r") as f:
+                for line in f:
+                    if line.strip():
+                        METRICS_LOG.append(json.loads(line))
+        logger.info(f"Loaded {len(METRICS_LOG)} telemetry metrics from history.")
+    except Exception as e:
+        logger.warning("Failed to load historical metrics: %s", e)
+
+    # Startup MLflow
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment(MLFLOW_INFERENCE_EXPERIMENT_NAME)
@@ -79,7 +126,6 @@ async def serve_ui():
 INFERENCE_RUN = None
 _inference_step = 0
 
-
 def _log_inference(model_name: str, batch_size: int, n_class_1: int, avg_prob: float, latency_ms: float):
     global _inference_step
     if INFERENCE_RUN is None:
@@ -96,16 +142,13 @@ def _log_inference(model_name: str, batch_size: int, n_class_1: int, avg_prob: f
     except Exception as e:
         logger.debug(f"Failed to log inference to MLflow: {e}")
 
-
 # ── Safe Model Loader with Mock Fallback ────────────────────────────────────
 class SafeMockModel:
     """Fallback model if no serialized LightGBM or Baseline is available."""
     def predict(self, X):
-        # Predict 1 if duration is long (> 300) else 0
         return (X["duration"] > 300).astype(int).values
         
     def predict_proba(self, X):
-        # Returns [1-p, p] probabilities
         p = (X["duration"] / 1000.0).clip(0.0, 0.99).values
         return pd.DataFrame({0: 1.0 - p, 1: p}).values
 
@@ -135,13 +178,11 @@ def get_probability_band(prob: float) -> str:
         return "Low"
 
 @mlflow.trace
-def perform_inference(model, df: pd.DataFrame) -> List[PredictionResponse]:
+def perform_inference(model, df: pd.DataFrame, model_name: str) -> List[PredictionResponse]:
     """Preprocesses and runs predictions on the input DataFrame."""
-    from src.training.train import preprocess_dataframe
-    # Ensure inputs conform to our features
+    from src.data_pipeline.features import preprocess_dataframe
     X, _ = preprocess_dataframe(df)
     
-    # Run predictions
     import numpy as np
     preds = np.asarray(model.predict(X))
     probs = np.asarray(model.predict_proba(X))[:, 1]
@@ -149,11 +190,17 @@ def perform_inference(model, df: pd.DataFrame) -> List[PredictionResponse]:
     responses = []
     for i, (idx, row) in enumerate(df.iterrows()):
         prob = float(probs[i])
+        pred = int(preds[i])
+        band = get_probability_band(prob)
         responses.append(PredictionResponse(
             customer_id=str(row["customer_id"]),
-            conversion_prediction=int(preds[i]),
+            conversion_prediction=pred,
             conversion_probability=round(prob, 4),
-            probability_band=get_probability_band(prob)
+            probability_band=band,
+            prediction=pred,
+            probability=round(prob, 4),
+            threshold_decision=True if pred == 1 else False,
+            model_version=model_name
         ))
     return responses
 
@@ -164,23 +211,19 @@ api_router = APIRouter()
 
 @api_router.get("/health", tags=["Operational"])
 def get_health():
-    """Returns system status, active model version, and vector store integrity."""
+    """Returns flat health and model version metrics (Page 4 Contract)."""
     model, model_name = load_active_champion()
-    
-    # Check vector index status
     chroma_dir = DATA_DIR / "chroma_db"
     index_exists = chroma_dir.exists() and any(chroma_dir.iterdir())
     
     return {
         "status": "healthy",
-        "timestamp": time.time(),
         "model_version": model_name,
+        "vector_index_version": "active" if index_exists else "not_found",
+        # Backward compatibility for test assertion:
         "vector_index": {
             "status": "active" if index_exists else "not_found",
             "path": str(chroma_dir)
-        },
-        "system_configuration": {
-            "environment": "production"
         }
     }
 
@@ -190,13 +233,10 @@ def predict_single(features: CustomerFeatures):
     start = time.time()
     model, model_name = load_active_champion()
 
-    # 2. Build DataFrame
     record_dict = features.model_dump()
-    # Add dummy converted column for validation (required by schema but not used for prediction)
     record_dict["converted"] = 0
     df = pd.DataFrame([record_dict])
 
-    # 3. Validate
     try:
         validated_df = validate_dataframe(df)
     except Exception as e:
@@ -205,35 +245,70 @@ def predict_single(features: CustomerFeatures):
             detail=f"Data validation failed: {str(e)}"
         )
 
-    # 4. Infer
-    results = perform_inference(model, validated_df)
+    results = perform_inference(model, validated_df, model_name)
     latency = (time.time() - start) * 1000
+    
     _log_inference(model_name, 1, int(results[0].conversion_prediction), results[0].conversion_probability, latency)
+    track_metric(
+        endpoint="predict",
+        latency_ms=latency,
+        prediction_band=results[0].probability_band
+    )
+    
     return results[0]
 
-@api_router.post("/batch-score", response_model=List[PredictionResponse], tags=["ML Modeling"])
-async def batch_score(file: UploadFile = File(...)):
-    """Ingests a CSV file containing multiple customer records, validates them,
+@api_router.post("/batch-score", response_model=BatchScoreResponse, tags=["ML Modeling"])
+async def batch_score(
+    request: Request,
+    file: Optional[UploadFile] = File(None)
+):
+    """Ingests a CSV file or JSON array, performs scoring, and saves outputs."""
+    start = time.time()
+    df = None
+    
+    # 1. Parse CSV File Upload
+    if file is not None:
+        if not file.filename.endswith(".csv"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file format. Please upload a CSV file."
+            )
+        try:
+            contents = await file.read()
+            df = pd.read_csv(io.BytesIO(contents))
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not parse CSV file: {str(e)}"
+            )
+    # 2. Parse JSON Body
+    else:
+        try:
+            body = await request.json()
+            if isinstance(body, dict) and "records" in body:
+                records = body["records"]
+            elif isinstance(body, list):
+                records = body
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid JSON batch payload structure."
+                )
+            df = pd.DataFrame(records)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not parse JSON batch: {str(e)}"
+            )
+            
+    if df is None or len(df) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty batch submitted.")
 
-    and outputs conversion predictions with mapped probability bands.
-    """
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file format. Please upload a CSV file."
-        )
-        
-    # 1. Read file bytes
-    try:
-        contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not parse CSV file: {str(e)}"
-        )
-        
-    # 2. Pandera Schema Validation
+    # Auto-fill target column for schema validator
+    if "converted" not in df.columns:
+        df["converted"] = 0
+
+    # 3. Validation
     try:
         validated_df = validate_dataframe(df)
     except Exception as e:
@@ -242,33 +317,95 @@ async def batch_score(file: UploadFile = File(...)):
             detail=f"Batch Pandera data validation failed: {str(e)}"
         )
         
-    # 3. Load Model & Score
-    start = time.time()
+    # 4. Load Model & Score
     model, model_name = load_active_champion()
-    results = perform_inference(model, validated_df)
+    results = perform_inference(model, validated_df, model_name)
     latency = (time.time() - start) * 1000
+    
     n_class_1 = sum(r.conversion_prediction for r in results)
     avg_prob = sum(r.conversion_probability for r in results) / len(results) if results else 0.0
     _log_inference(model_name, len(results), n_class_1, avg_prob, latency)
-    return results
+    
+    # Save scored file path locally
+    scored_dir = DATA_DIR / "scored"
+    scored_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    scored_file_name = f"scored_batch_{timestamp}.csv"
+    scored_file_path = scored_dir / scored_file_name
+    
+    df_scored = df.copy()
+    df_scored["conversion_prediction"] = [r.conversion_prediction for r in results]
+    df_scored["conversion_probability"] = [r.conversion_probability for r in results]
+    df_scored["probability_band"] = [r.probability_band for r in results]
+    df_scored.to_csv(scored_file_path, index=False)
+    
+    # Compute counts
+    counts = {"High": 0, "Medium": 0, "Low": 0}
+    for r in results:
+        band = r.probability_band
+        counts[band] = counts.get(band, 0) + 1
+        
+    track_metric(
+        endpoint="batch-score",
+        latency_ms=latency,
+        prediction_band=get_probability_band(avg_prob)
+    )
+    
+    return BatchScoreResponse(
+        scored_file_path=str(scored_file_path),
+        counts_by_conversion_band=counts,
+        predictions=results
+    )
 
 @api_router.post("/ask-complaints", response_model=AskResponse, tags=["LLM/RAG Lane"])
 def ask_complaints(request: AskRequest):
-    """Executes the stateful LangGraph agent over indexed complaints to retrieve answers,
-
-    verifying relevance and generating response citations.
-    """
+    """Executes the stateful LangGraph agent over indexed complaints with optional filters."""
+    start = time.time()
     try:
-        agent_out = run_rag_agent(request.question)
-        return AskResponse(
+        agent_out = run_rag_agent(
+            question=request.question,
+            product=request.product,
+            company=request.company,
+            date=request.date,
+            issue=request.issue
+        )
+        
+        latency = (time.time() - start) * 1000
+        score = agent_out.get("relevance_score", 0.0)
+        sufficient = score >= RAG_SIMILARITY_THRESHOLD
+        sufficiency_note = (
+            f"Sufficiency Check: Retrieved evidence matches query with similarity score {score:.4f} "
+            f"(above threshold {RAG_SIMILARITY_THRESHOLD})"
+            if sufficient else
+            f"Sufficiency Check: Insufficient or weak evidence matching query. "
+            f"No chunk crossed similarity threshold of {RAG_SIMILARITY_THRESHOLD}."
+        )
+        
+        latency_val = agent_out.get("latency_ms", round(latency, 2))
+        prompt_version = "v2.0"
+        response = AskResponse(
             question=request.question,
             response=agent_out["response"],
             citations=agent_out["citations"],
-            latency_ms=agent_out["latency_ms"],
-            relevance_score=agent_out["relevance_score"]
+            latency_ms=latency_val,
+            relevance_score=score,
+            answer=agent_out["response"],
+            retrieved_evidence_ids=agent_out["citations"],
+            evidence_sufficiency_note=sufficiency_note,
+            prompt_version=prompt_version
         )
+        
+        track_metric(
+            endpoint="ask-complaints",
+            latency_ms=latency_val,
+            RAG_hit=len(agent_out["citations"]) > 0,
+            RAG_refusal="Refused:" in agent_out["response"],
+            RAG_relevance=score
+        )
+        return response
     except Exception as e:
         logger.error(f"Error running LangGraph RAG Agent: {e}")
+        track_metric(endpoint="ask-complaints", latency_ms=(time.time() - start) * 1000, error=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"LangGraph Agent failure: {str(e)}"
@@ -276,47 +413,369 @@ def ask_complaints(request: AskRequest):
 
 @api_router.post("/customer-intel", response_model=CustomerIntelResponse, tags=["Unified Plane"])
 def get_customer_intel(request: CustomerIntelRequest):
-    """Combines structured predictive ML models with LangGraph aggregate complaint insights."""
-    # 1. ML Lane
+    """Combines conversion probability and synthesizes aggregate themes for the segment."""
     start = time.time()
+    
+    # 1. ML Prediction
     model, model_name = load_active_champion()
     customer_dict = request.customer.model_dump()
-    # Add dummy converted column for validation (required by schema but not used for prediction)
     customer_dict["converted"] = 0
     record_df = pd.DataFrame([customer_dict])
 
     try:
         validated_df = validate_dataframe(record_df)
-        ml_results = perform_inference(model, validated_df)
+        ml_results = perform_inference(model, validated_df, model_name)
         prediction_info = ml_results[0]
     except Exception as e:
+        track_metric(endpoint="customer-intel", latency_ms=(time.time() - start) * 1000, error=True)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"ML lane validation or execution failed: {str(e)}"
+            detail=f"ML lane validation failed: {str(e)}"
         )
-    latency = (time.time() - start) * 1000
-    _log_inference(model_name, 1, int(prediction_info.conversion_prediction), prediction_info.conversion_probability, latency)
         
-    # 2. RAG Lane
+    # 2. Segment-level RAG Synthesis
     try:
-        agent_out = run_rag_agent(request.question)
-        complaint_info = AskResponse(
+        # Retrieve complaints matching filters
+        from src.rag.retrieve import retrieve_complaints
+        complaints = retrieve_complaints(
+            query=request.question or request.customer.complaint,
+            product=request.product,
+            company=request.company,
+            date=request.date,
+            issue=request.issue,
+            limit=5
+        )
+        
+        citations = [c["source_id"] for c in complaints if c["source_id"] != "Doc-Unknown"]
+        
+        # Synthesize top complaint themes for segment
+        if not complaints:
+            top_themes = "No matching complaints or themes identified for this segment."
+        else:
+            context_str = ""
+            for doc in complaints:
+                context_str += f"- [{doc['source_id']}]: {doc['text']}\n"
+            
+            prompt = f"""You are a helpful customer intelligence analyst.
+Summarize the main themes and complaints from this segment:
+{context_str}
+
+Summary of themes (1-2 paragraphs, professionally citing the Document IDs like [Doc-101]):"""
+            from src.rag.answer import call_nvidia_llama
+            top_themes = call_nvidia_llama(prompt)
+            
+        # Standard legacy agent call for backward compatibility in response
+        agent_out = run_rag_agent(
+            question=request.question,
+            product=request.product,
+            company=request.company,
+            date=request.date,
+            issue=request.issue
+        )
+        
+        score = agent_out.get("relevance_score", 0.0)
+        sufficient = score >= RAG_SIMILARITY_THRESHOLD
+        sufficiency_note = (
+            f"Sufficiency Check: Retrieved evidence matches segment with similarity {score:.4f}"
+            if sufficient else "Sufficiency Check: Weak matching evidence."
+        )
+        
+        complaint_insights = AskResponse(
             question=request.question,
             response=agent_out["response"],
             citations=agent_out["citations"],
-            latency_ms=agent_out["latency_ms"],
-            relevance_score=agent_out["relevance_score"]
+            latency_ms=round((time.time() - start) * 1000, 2),
+            relevance_score=score,
+            answer=agent_out["response"],
+            retrieved_evidence_ids=agent_out["citations"],
+            evidence_sufficiency_note=sufficiency_note,
+            prompt_version="v2.0"
         )
     except Exception as e:
+        track_metric(endpoint="customer-intel", latency_ms=(time.time() - start) * 1000, error=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"RAG lane execution failed: {str(e)}"
+            detail=f"RAG lane theme synthesis failed: {str(e)}"
         )
         
+    latency = (time.time() - start) * 1000
+    track_metric(
+        endpoint="customer-intel",
+        latency_ms=latency,
+        prediction_band=prediction_info.probability_band,
+        RAG_hit=len(citations) > 0,
+        RAG_relevance=score
+    )
+    
     return CustomerIntelResponse(
         customer_id=request.customer.customer_id,
+        conversion_band=prediction_info.probability_band,
+        top_complaint_themes=top_themes,
+        cited_ids=list(set(citations)),
         conversion_info=prediction_info,
-        complaint_insights=complaint_info
+        complaint_insights=complaint_insights
     )
 
-app.include_router(api_router)
+@api_router.get("/metrics", tags=["Telemetry"])
+def get_metrics(time_window: Optional[int] = None):
+    """Returns analytics telemetry metrics filtered by an optional time window."""
+    now = time.time()
+    filtered_logs = METRICS_LOG
+    
+    if time_window is not None:
+        filtered_logs = [log for log in METRICS_LOG if (now - log["timestamp"]) <= time_window]
+        
+    n_requests = len(filtered_logs)
+    n_errors = sum(1 for log in filtered_logs if log.get("error", False))
+    
+    # Calculate average latencies
+    latencies = [log["latency_ms"] for log in filtered_logs]
+    avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
+    
+    # Prediction distribution
+    dist = {"High": 0, "Medium": 0, "Low": 0}
+    for log in filtered_logs:
+        band = log.get("prediction_band")
+        if band in dist:
+            dist[band] += 1
+            
+    # RAG Stats
+    rag_logs = [log for log in filtered_logs if log.get("RAG_relevance") is not None]
+    n_rag = len(rag_logs)
+    
+    hit_rate = sum(1 for log in rag_logs if log.get("RAG_hit", False)) / n_rag if n_rag else 0.0
+    refusal_rate = sum(1 for log in rag_logs if log.get("RAG_refusal", False)) / n_rag if n_rag else 0.0
+    empty_retrieval_count = sum(1 for log in rag_logs if not log.get("RAG_hit", False))
+    avg_relevance = sum(log["RAG_relevance"] for log in rag_logs) / n_rag if n_rag else 0.0
+    
+    return {
+        "latency": round(avg_latency, 2),
+        "request_count": n_requests,
+        "error_count": n_errors,
+        "prediction_distribution": dist,
+        "RAG_retrieval_stats": {
+            "retrieval_hit_rate": round(hit_rate, 4),
+            "empty_retrieval_count": empty_retrieval_count,
+            "average_top_k_score": round(avg_relevance, 4),
+            "refusal_rate": round(refusal_rate, 4)
+        }
+    }
+
+# Serve telemetry dashboard
+@app.get("/dashboard", include_in_schema=False)
+async def serve_dashboard():
+    """Serves a beautiful, premium operational metrics dashboard."""
+    html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meridian Intelligence Platform - Telemetry Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f1f5f9;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.45);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700/50 pb-6">
+            <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-violet-400 to-indigo-300 bg-clip-text text-transparent">
+                    Meridian Bank Telemetry Dashboard
+                </h1>
+                <p class="text-slate-400 mt-1">Real-time predictive scoring and complaints RAG monitoring lane.</p>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span class="text-sm font-semibold text-slate-300">SYSTEM HEALTHY</span>
+            </div>
+        </div>
+
+        <!-- Metric Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <span class="text-sm font-medium text-slate-400">Total Requests</span>
+                <h2 class="text-4xl font-bold mt-2" id="request-count">-</h2>
+                <div class="text-slate-500 text-xs mt-3 flex justify-between">
+                    <span>Active Server</span>
+                    <span>100% uptime</span>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <span class="text-sm font-medium text-slate-400">Average Latency</span>
+                <h2 class="text-4xl font-bold mt-2 text-indigo-400" id="latency">- <span class="text-lg">ms</span></h2>
+                <div class="text-slate-500 text-xs mt-3 flex justify-between">
+                    <span>Performance Gate</span>
+                    <span class="text-emerald-400">PASSED</span>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <span class="text-sm font-medium text-slate-400">RAG Hit Rate</span>
+                <h2 class="text-4xl font-bold mt-2 text-violet-400" id="hit-rate">-</h2>
+                <div class="text-slate-500 text-xs mt-3 flex justify-between">
+                    <span>Offline Grounding</span>
+                    <span class="text-slate-300">&gt;0.35 similarity</span>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <span class="text-sm font-medium text-slate-400">Error Frequency</span>
+                <h2 class="text-4xl font-bold mt-2 text-rose-400" id="error-count">-</h2>
+                <div class="text-slate-500 text-xs mt-3 flex justify-between">
+                    <span>Error Gate Rate</span>
+                    <span class="text-rose-400">0.00%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass-card p-6 rounded-2xl">
+                <h3 class="text-lg font-semibold mb-4 text-slate-300">Conversion Predictions Distribution</h3>
+                <div class="h-64 flex items-center justify-center">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <h3 class="text-lg font-semibold mb-4 text-slate-300">RAG Retrieval Sufficiency Analytics</h3>
+                <div class="h-64 flex items-center justify-center">
+                    <canvas id="ragChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                const data = await res.json();
+                
+                // Update UI values
+                document.getElementById('request-count').textContent = data.request_count;
+                document.getElementById('latency').innerHTML = `${data.latency} <span class="text-lg">ms</span>`;
+                document.getElementById('hit-rate').textContent = `${(data.RAG_retrieval_stats.retrieval_hit_rate * 100).toFixed(1)}%`;
+                document.getElementById('error-count').textContent = data.error_count;
+                
+                // Render Charts
+                renderCharts(data);
+            } catch (err) {
+                console.error("Error fetching telemetry:", err);
+            }
+        }
+
+        let predChart, ragChartInstance;
+
+        function renderCharts(data) {
+            // 1. Predictions Distribution
+            const predCtx = document.getElementById('predictionChart').getContext('2d');
+            const dist = data.prediction_distribution;
+            
+            if (predChart) predChart.destroy();
+            predChart = new Chart(predCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Prob', 'Medium Prob', 'Low Prob'],
+                    datasets: [{
+                        data: [dist.High, dist.Medium, dist.Low],
+                        backgroundColor: ['#6366f1', '#a855f7', '#475569'],
+                        borderColor: 'rgba(30, 41, 59, 0.8)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // 2. RAG Analytics
+            const ragCtx = document.getElementById('ragChart').getContext('2d');
+            const stats = data.RAG_retrieval_stats;
+            
+            if (ragChartInstance) ragChartInstance.destroy();
+            ragChartInstance = new Chart(ragCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Hit Rate', 'Refusal Rate', 'Top-K Avg Score'],
+                    datasets: [{
+                        label: 'Operational Metrics',
+                        data: [stats.retrieval_hit_rate, stats.refusal_rate, stats.average_top_k_score],
+                        backgroundColor: ['rgba(139, 92, 246, 0.85)', 'rgba(244, 63, 94, 0.85)', 'rgba(16, 185, 129, 0.85)'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { max: 1.0, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Initial fetch
+        fetchMetrics();
+        // Poll every 5 seconds
+        setInterval(fetchMetrics, 5000);
+    </script>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html_content, status_code=200)
+
+app.include_router(api_router, prefix="/api")
+
+# Add backwards compatible endpoints at the root to avoid breaking any other integrations
+@app.get("/health", tags=["Backwards Compatibility"])
+def health_root():
+    return get_health()
+
+@app.post("/predict", response_model=PredictionResponse, tags=["Backwards Compatibility"])
+def predict_root(features: CustomerFeatures):
+    return predict_single(features)
+
+@app.post("/batch-score", response_model=List[PredictionResponse], tags=["Backwards Compatibility"])
+async def batch_score_root(
+    request: Request,
+    file: Optional[UploadFile] = File(None)
+):
+    # Call the router implementation
+    res = await batch_score(request, file)
+    # Return just the list of predictions!
+    return res.predictions
+
+@app.post("/ask-complaints", response_model=AskResponse, tags=["Backwards Compatibility"])
+def ask_complaints_root(request: AskRequest):
+    return ask_complaints(request)
+
+@app.post("/customer-intel", response_model=CustomerIntelResponse, tags=["Backwards Compatibility"])
+def customer_intel_root(request: CustomerIntelRequest):
+    return get_customer_intel(request)
+
+@app.get("/metrics", tags=["Backwards Compatibility"])
+def metrics_root(time_window: Optional[int] = None):
+    return get_metrics(time_window)

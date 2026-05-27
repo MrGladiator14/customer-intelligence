@@ -174,7 +174,11 @@
         <form id="predictForm">
             <div class="form-group">
                 <label for="customerId">Customer ID (CUST*)</label>
-                <input type="text" id="customerId" name="customerId" placeholder="CUST101" required>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="customerId" name="customerId" placeholder="CUST101" required style="flex: 1;">
+                    <button type="button" id="autofillPredictBtn" style="background: #2ecc71;">Autofill</button>
+                </div>
+                <span id="predictAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
             </div>
             <div class="form-group">
                 <label for="age">Age</label>
@@ -235,7 +239,11 @@
         <form id="intelForm">
             <div class="form-group">
                 <label for="intelCustomerId">Customer ID (CUST*)</label>
-                <input type="text" id="intelCustomerId" name="intelCustomerId" placeholder="CUST101" required>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="intelCustomerId" name="intelCustomerId" placeholder="CUST101" required style="flex: 1;">
+                    <button type="button" id="autofillIntelBtn" style="background: #2ecc71;">Autofill</button>
+                </div>
+                <span id="intelAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
             </div>
             <div class="form-group">
                 <label for="intelAge">Age</label>
@@ -473,6 +481,69 @@
             } catch (error) {
                 resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
+        });
+
+        // Autofill helper function
+        async function performAutofill(customerId, fields, statusSpanId) {
+            const statusSpan = document.getElementById(statusSpanId);
+            if (!customerId) {
+                statusSpan.style.color = '#e74c3c';
+                statusSpan.textContent = 'Please enter a Customer ID first.';
+                return;
+            }
+            
+            statusSpan.style.color = '#7f8c8d';
+            statusSpan.textContent = 'Fetching details...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/customer-details/${customerId}`);
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || `Customer not found (${response.status})`);
+                }
+                
+                const data = await response.json();
+                
+                // Populate all fields
+                for (const [fieldId, key] of Object.entries(fields)) {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.value = data[key] !== undefined ? data[key] : '';
+                }
+                
+                statusSpan.style.color = '#27ae60';
+                statusSpan.textContent = `Success! Loaded details (${data.cache_status === 'HIT' ? 'Cache HIT' : 'Cache MISS'})`;
+            } catch (error) {
+                statusSpan.style.color = '#e74c3c';
+                statusSpan.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Single Prediction Autofill Trigger
+        document.getElementById('autofillPredictBtn').addEventListener('click', () => {
+            const custId = document.getElementById('customerId').value.trim();
+            const fields = {
+                'age': 'age',
+                'education': 'education',
+                'job': 'job',
+                'balance': 'balance',
+                'duration': 'duration',
+                'complaint': 'complaint'
+            };
+            performAutofill(custId, fields, 'predictAutofillStatus');
+        });
+
+        // Customer Intel Autofill Trigger
+        document.getElementById('autofillIntelBtn').addEventListener('click', () => {
+            const custId = document.getElementById('intelCustomerId').value.trim();
+            const fields = {
+                'intelAge': 'age',
+                'intelEducation': 'education',
+                'intelJob': 'job',
+                'intelBalance': 'balance',
+                'intelDuration': 'duration',
+                'intelComplaint': 'complaint'
+            };
+            performAutofill(custId, fields, 'intelAutofillStatus');
         });
     </script>
 </body>

@@ -17,10 +17,11 @@ def retrieve_complaints(
     company: str = None,
     date: str = None,
     issue: str = None,
+    customer_id: str = None,
     limit: int = RAG_TOP_K
 ) -> List[Dict[str, Any]]:
     """Retrieves top-K complaints from ChromaDB based on query and optional filters."""
-    logger.info(f"Retrieving complaints for query: '{query}' with filters (product={product}, company={company}, date={date}, issue={issue})")
+    logger.info(f"Retrieving complaints for query: '{query}' with filters (product={product}, company={company}, date={date}, issue={issue}, customer_id={customer_id})")
     
     # 1. Connect to ChromaDB
     chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
@@ -35,10 +36,14 @@ def retrieve_complaints(
     query_embedding = embedding_engine.embed_query(query)
     
     # 3. Query (Request a larger batch so we can filter in Python and still return up to top-K)
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=max(limit * 4, 20)
-    )
+    query_args = {
+        "query_embeddings": [query_embedding],
+        "n_results": max(limit * 4, 20)
+    }
+    if customer_id:
+        query_args["where"] = {"customer_id": customer_id}
+        
+    results = collection.query(**query_args)
     
     docs = []
     if results and "documents" in results and results["documents"]:
@@ -63,6 +68,8 @@ def retrieve_complaints(
             }
             
             # Apply optional filters in Python (case-insensitive keyword matching on text)
+            if customer_id and str(customer_id).strip().lower() != str(meta.get("customer_id", "")).strip().lower():
+                continue
             if product and product.lower() not in doc_text.lower():
                 continue
             if company and company.lower() not in doc_text.lower():

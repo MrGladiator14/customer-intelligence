@@ -133,6 +133,16 @@ def run_tests():
     if res:
         print(json.dumps(res, indent=2))
 
+    print_section("7. Testing Customer Details Endpoint (/api/customer-details/CUST001)")
+    # Test first query (Cache MISS)
+    status, res = send_request("GET", "/api/customer-details/CUST001")
+    if res:
+        print(json.dumps(res, indent=2))
+    # Test second query (Cache HIT)
+    status, res = send_request("GET", "/api/customer-details/CUST001")
+    if res:
+        print(json.dumps(res, indent=2))
+
 if __name__ == "__main__":
     print("=== Meridian Local Service Test Suite ===")
     run_tests()

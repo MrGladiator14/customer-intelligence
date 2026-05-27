@@ -1,0 +1,3 @@
+customer_id,age,education,job,balance,duration,complaint,converted,conversion_prediction,conversion_probability,probability_band
+CUST1001,35,tertiary,management,2500.5,420,Unexpected charge on my statement without prior notification. [Doc-101],0,1,0.9597,High
+CUST1002,45,secondary,blue-collar,500.0,90,Mobile application crashes immediately when selecting transfer option.,0,0,0.0378,Low

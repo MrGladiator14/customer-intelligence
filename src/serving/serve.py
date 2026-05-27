@@ -80,6 +80,14 @@ async def lifespan(app_instance):
     except Exception as e:
         logger.warning("Failed to load historical metrics: %s", e)
 
+    # Initialize local SQLite DB and pre-populate
+    try:
+        from src.serving.database import init_db
+        init_db()
+        logger.info("Local SQLite database pre-population finished.")
+    except Exception as e:
+        logger.error("Failed to initialize local SQLite database: %s", e)
+
     # Startup MLflow
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -435,14 +443,20 @@ def get_customer_intel(request: CustomerIntelRequest):
         
     # 2. Segment-level RAG Synthesis
     try:
+        # Construct retrieval query combining question and user complaint
+        retrieval_query = request.question
+        if request.customer.complaint:
+            retrieval_query = f"{request.question} {request.customer.complaint}"
+
         # Retrieve complaints matching filters
         from src.rag.retrieve import retrieve_complaints
         complaints = retrieve_complaints(
-            query=request.question or request.customer.complaint,
+            query=retrieval_query,
             product=request.product,
             company=request.company,
             date=request.date,
             issue=request.issue,
+            customer_id=request.customer.customer_id,
             limit=5
         )
         
@@ -466,11 +480,12 @@ Summary of themes (1-2 paragraphs, professionally citing the Document IDs like [
             
         # Standard legacy agent call for backward compatibility in response
         agent_out = run_rag_agent(
-            question=request.question,
+            question=retrieval_query,
             product=request.product,
             company=request.company,
             date=request.date,
-            issue=request.issue
+            issue=request.issue,
+            customer_id=request.customer.customer_id
         )
         
         score = agent_out.get("relevance_score", 0.0)
@@ -515,6 +530,18 @@ Summary of themes (1-2 paragraphs, professionally citing the Document IDs like [
         conversion_info=prediction_info,
         complaint_insights=complaint_insights
     )
+
+@api_router.get("/customer-details/{customer_id}", tags=["Unified Plane"])
+def get_customer_details_endpoint(customer_id: str):
+    """Retrieves customer details from cache or SQLite database."""
+    from src.serving.database import get_customer_details
+    details = get_customer_details(customer_id)
+    if not details:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer details for ID '{customer_id}' not found."
+        )
+    return details
 
 @api_router.get("/metrics", tags=["Telemetry"])
 def get_metrics(time_window: Optional[int] = None):
@@ -775,6 +802,10 @@ def ask_complaints_root(request: AskRequest):
 @app.post("/customer-intel", response_model=CustomerIntelResponse, tags=["Backwards Compatibility"])
 def customer_intel_root(request: CustomerIntelRequest):
     return get_customer_intel(request)
+
+@app.get("/customer-details/{customer_id}", tags=["Backwards Compatibility"])
+def customer_details_root(customer_id: str):
+    return get_customer_details_endpoint(customer_id)
 
 @app.get("/metrics", tags=["Backwards Compatibility"])
 def metrics_root(time_window: Optional[int] = None):

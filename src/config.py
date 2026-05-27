@@ -28,3 +28,10 @@ RAG_SAMPLE_SIZE = int(os.getenv("RAG_SAMPLE_SIZE", "5000"))
 
 PROMOTION_PR_AUC_MIN_IMPROVEMENT = float(os.getenv("PROMOTION_PR_AUC_MIN_IMPROVEMENT", "0.03"))
 PROMOTION_F1_MAX_DROP = float(os.getenv("PROMOTION_F1_MAX_DROP", "0.02"))
+
+# Database & Redis Caching configuration
+SQLITE_DB_PATH = DATA_DIR / "customer_intelligence.db"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+

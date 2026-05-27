@@ -22,6 +22,7 @@ class AgentState(TypedDict):
     company: Optional[str]
     date: Optional[str]
     issue: Optional[str]
+    customer_id: Optional[str]
     documents: List[Dict[str, Any]]
     relevance_score: float
     response: str
@@ -34,13 +35,14 @@ class AgentState(TypedDict):
 @mlflow.trace(span_type="RETRIEVER")
 def node_retrieve(state: AgentState) -> Dict[str, Any]:
     """Retrieves top-K complaints based on query and filters."""
-    logger.info(f"Node [Retrieve]: Querying ChromaDB for '{state['question']}'")
+    logger.info(f"Node [Retrieve]: Querying ChromaDB for '{state['question']}' with customer_id '{state.get('customer_id')}'")
     docs = retrieve_complaints(
         query=state["question"],
         product=state.get("product"),
         company=state.get("company"),
         date=state.get("date"),
-        issue=state.get("issue")
+        issue=state.get("issue"),
+        customer_id=state.get("customer_id")
     )
     return {
         "documents": docs,
@@ -127,7 +129,8 @@ def run_rag_agent(
     product: str = None,
     company: str = None,
     date: str = None,
-    issue: str = None
+    issue: str = None,
+    customer_id: str = None
 ) -> Dict[str, Any]:
     """Wrapper function to run the compiled LangGraph and track overall latency."""
     try:
@@ -146,6 +149,7 @@ def run_rag_agent(
         "company": company,
         "date": date,
         "issue": issue,
+        "customer_id": customer_id,
         "documents": [],
         "relevance_score": 0.0,
         "response": "",

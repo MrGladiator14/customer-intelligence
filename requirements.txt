@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 pandas
 pandera>=0.18
 scikit-learn
@@ -9,7 +11,6 @@ uvicorn[standard]
 pydantic
 chromadb
 langgraph
-langchain-nvidia-ai-endpoints
 python-dotenv
 numpy
 matplotlib

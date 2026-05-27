@@ -204,6 +204,19 @@ bash deploy/deploy.sh fastapi
 bash deploy/deploy.sh mlflow
 bash deploy/deploy.sh nginx
 ```
+
+### Updating Existing Deployments (Redeploying)
+For subsequent deployments after the initial provisioning, you should use the `redeploy.sh` script to properly trigger Azure Container App revisions. To ensure your latest commit is built and deployed, export the `IMAGE_TAG` dynamically:
+
+```bash
+# Update all services
+bash -c 'export IMAGE_TAG=$(git rev-parse --short HEAD); bash deploy/redeploy.sh all'
+
+# Or update selectively:
+bash -c 'export IMAGE_TAG=$(git rev-parse --short HEAD); bash deploy/redeploy.sh fastapi'
+bash -c 'export IMAGE_TAG=$(git rev-parse --short HEAD); bash deploy/redeploy.sh mlflow'
+bash -c 'export IMAGE_TAG=$(git rev-parse --short HEAD); bash deploy/redeploy.sh nginx'
+```
 This automated shell workflow:
 1. Provisions an Azure Resource Group in the target region (`centralindia`).
 2. Generates an Azure Container Registry (ACR).

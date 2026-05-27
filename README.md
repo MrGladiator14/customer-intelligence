@@ -73,6 +73,9 @@ graph TB
 ## Repository Layout & Code Modules
 
 ```text
+├── .github/              # CI/CD workflows (GitHub Actions)
+│   └── workflows/
+│       └── ci.yml        # CI Pipeline running tests and validation
 ├── data/                 # Raw/processed datasets
 ├── deploy/               # Deployment scripts and CI/CD pipelines
 │   ├── deploy.sh         # Provisions infra and deploys Docker containers to Azure ACA
@@ -87,19 +90,35 @@ graph TB
 │   ├── config.py         # Global environment variables and hyper-parameters
 │   ├── data_pipeline/    # Declarative validators and ingestion logic
 │   │   ├── ingest.py     # Schema checking pipeline execution
-│   │   └── validate.py   # Strict data validations using Pandera
+│   │   ├── validate.py   # Strict data validations using Pandera
+│   │   ├── features.py   # Reusable feature engineering functions
+│   │   ├── generate_synthetic_data.py # Synthetic data generation
+│   │   └── add_inference2train_set.py # Feedback loop data integration
 │   ├── training/         # Model training and promotion criteria
 │   │   ├── train.py      # Baseline and champion training scripts
 │   │   └── evaluate.py   # Model evaluation and promotion gate rules
 │   ├── rag/              # Conversational agent and complaint context indexing
 │   │   ├── build_index.py # PDF/CSV ingestion, embedding models, and ChromaDB inserts
+│   │   ├── retrieve.py   # Standalone retrieval logic
+│   │   ├── answer.py     # Generation and prompting logic
 │   │   ├── langgraph_agent.py # Stateful LangGraph implementation
 │   │   └── rag_eval.py   # Vector validation and out-of-domain refusal testing
 │   └── serving/          # Unified HTTP APIs
 │       ├── app.py        # Starlette mounting and application middleware
 │       ├── schemas.py    # Strict API schemas via Pydantic
 │       └── serve.py      # Predict, batch score, and complaint ask endpoints
-└── ui/                   # Web-based analytics interface
+├── monitoring/           # System drift and performance monitoring
+│   ├── ml_drift.py       # ML drift detection and analysis
+│   └── rag_monitor.py    # RAG pipeline monitoring metrics
+├── tests/                # Automated test suites
+│   ├── test_database.py
+│   ├── test_local_service.py
+│   └── test_rag.py
+├── ui/                   # Web-based analytics interface
+│   ├── index.html        # Main dashboard with Dark Mode and Metrics Export
+│   ├── test.html         # Legacy index page accessible via login screen
+│   └── README.md         # UI specific documentation
+└── reflection.md         # Architecture reflections and design decisions
 ```
 
 ---
@@ -173,11 +192,17 @@ graph TD
 
 Deployment infrastructure provisioning scripts reside in the `deploy/` directory.
 
-### Initial Provisioning
-Authenticate with Azure and execute the deploy workflow:
+### Initial & Targeted Provisioning
+Authenticate with Azure and execute the deploy workflow. The deployment script has been modularized to allow targeted deployment of specific components:
 ```bash
 az login
-bash deploy/deploy.sh
+# Deploy all services (default)
+bash deploy/deploy.sh all
+
+# Or deploy selectively:
+bash deploy/deploy.sh fastapi
+bash deploy/deploy.sh mlflow
+bash deploy/deploy.sh nginx
 ```
 This automated shell workflow:
 1. Provisions an Azure Resource Group in the target region (`centralindia`).

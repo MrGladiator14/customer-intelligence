@@ -2,9 +2,9 @@ name: Meridian Customer Intelligence CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ deploy ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ deploy ]
 
 jobs:
   validate-and-test:

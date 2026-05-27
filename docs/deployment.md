@@ -87,10 +87,16 @@ Follow this sequence to deploy the microservices stack to Azure Container Apps (
 * **Environment File**: Ensure `NVIDIA_API_KEY` is specified in your `.env` file in the repository root.
 
 ### Sequence A: Initial Infrastructure & First-Time Deployment
-1. **Initialize and Provision**:
-   Run the primary deployment script. This script automatically registers necessary Azure resource providers, creates a Resource Group, provisions the Azure Container Registry (ACR), sets up Log Analytics workspaces, generates the secure Container Apps Environment, builds the Docker images, and deploys the three Container Apps:
+1. **Initialize and Provision (or Targeted Deploy)**:
+   Run the primary deployment script. This script automatically registers necessary Azure resource providers, creates a Resource Group, provisions the Azure Container Registry (ACR), sets up Log Analytics workspaces, generates the secure Container Apps Environment, builds the Docker images, and deploys the three Container Apps. It also supports targeted deployment of individual components:
    ```bash
-   bash deploy/deploy.sh
+   # Deploy all services (default)
+   bash deploy/deploy.sh all
+
+   # Or deploy selectively:
+   bash deploy/deploy.sh fastapi
+   bash deploy/deploy.sh mlflow
+   bash deploy/deploy.sh nginx
    ```
 2. **Retrieve Deployment URLs**:
    At the end of a successful run, the script will output the secure endpoints matching your newly deployed system:
@@ -113,5 +119,6 @@ If you modify your FastAPI Python code, frontend HTML files, or Nginx templates,
    This script builds and pushes the updated images, registers new Container App revisions (triggering rolling updates), and performs automated curl health checks to verify that the app successfully stabilizes.
 
 ### Sequence C: Automated CI/CD (GitHub/Azure Pipelines)
-* On every merge or push to the `main` branch, the [azure-pipelines.yml](../deploy/azure-pipelines.yml) pipeline executes automatically in Azure Pipelines, compiling the containers via ACR remote builds and updating the running Container Apps with zero-downtime rolling updates.
+* On every merge or push to the `main` branch, the `.github/workflows/ci.yml` pipeline executes automated tests, linting, and data validation.
+* Additionally, [azure-pipelines.yml](../deploy/azure-pipelines.yml) compiles containers via ACR remote builds and updates running Container Apps with zero-downtime rolling updates.
 

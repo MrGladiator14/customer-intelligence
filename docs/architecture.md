@@ -59,12 +59,17 @@ src/
 ├── config.py             # Global environment configurations and hyper-parameters
 ├── data_pipeline/        # Data ingestion, schema enforcement, and validation
 │   ├── ingest.py         # CSV reader wrapping Pandera validators
-│   └── validate.py       # Decoupled Pandera declarative schema validation definitions
+│   ├── validate.py       # Decoupled Pandera declarative schema validation definitions
+│   ├── features.py       # Reusable feature engineering functions
+│   ├── generate_synthetic_data.py # Synthetic data generation
+│   └── add_inference2train_set.py # Feedback loop data integration
 ├── training/             # Scikit-learn/LightGBM model training and evaluation gates
 │   ├── train.py          # Preprocessing and dual-model training (Baseline vs. Champion)
 │   └── evaluate.py       # Relative promotion gate and pipeline execution checks
 ├── rag/                  # Retrieval-Augmented Generation using LangGraph & ChromaDB
 │   ├── build_index.py    # Document parsing, embedding creation, and index construction
+│   ├── retrieve.py       # Standalone retrieval logic
+│   ├── answer.py         # Generation and prompting logic
 │   ├── langgraph_agent.py# Stateful agent graph defining Retrieve -> Evaluate -> Generate/Refuse nodes
 │   └── rag_eval.py       # Offline evaluation suite verifying out-of-domain zero-hallucination thresholds
 └── serving/              # Serving endpoints built on FastAPI
@@ -85,6 +90,7 @@ src/
   * Non-negative constraint for last contact `duration`.
   * Coercion of types to prevent downstream pandas exceptions.
 * **`ingest.py`**: Reads incoming data from CSV files and runs the Pandera schema checker.
+* **Feedback Loop (`add_inference2train_set.py`)**: Captures live inference payloads and merges them back into the training dataset. This facilitates continuous learning and ensures the models can adapt to new data patterns over time.
 
 ### B. Machine Learning & Promotion Gate (`src/training/`)
 * **Preprocessing**: Encodes job titles and education levels to static structural codes (`job_code`, `edu_code`) using pre-defined mappings.
@@ -101,15 +107,19 @@ src/
 
 ### C. Retrieval-Augmented Generation (`src/rag/`)
 * **Vector Store (`build_index.py`)**: Extracts historical customer complaints from the training dataset, encodes them into high-dimensional vectors via HuggingFace's `BAAI/bge-small-en-v1.5` embeddings, and indexes them in a persistent `ChromaDB` collection.
+* **Corrective RAG (CRAG) Architecture**:
+  The RAG logic is decoupled into distinct modules for better maintainability:
+  * **`retrieve.py`**: Standalone module handling all similarity queries to ChromaDB.
+  * **`answer.py`**: Generative layer responsible for constructing answers and prompt engineering.
 * **Stateful Agent Graph (`langgraph_agent.py`)**:
   Assembles a stateful graph (`AgentState`) using `langgraph` containing the following nodes:
-  1. **`retrieve`**: Performs similarity query in ChromaDB.
-  2. **`evaluate_relevance`**: Computes max cosine similarity.
-  3. **`route_relevance` (Router)**: Routes queries depending on whether they pass the `RAG_SIMILARITY_THRESHOLD` (default: `0.35`):
+  1. **`retrieve`**: Performs similarity queries via the `retrieve.py` module.
+  2. **`evaluate_relevance`**: Computes relevance scores and filters retrieved documents based on a strict `RAG_SIMILARITY_THRESHOLD`.
+  3. **`route_relevance` (Router)**: Routes queries depending on the evaluation:
      * If **Passed**: Directs to the `generate` node.
      * If **Failed**: Directs to the `refuse` node.
   4. **`refuse`**: Generates a standard out-of-domain response: `"Refused: Evidence insufficient to ground an answer."`
-  5. **`generate`**: Interfaces with the upstream `ChatNVIDIA` (or high-fidelity mock) to synthesize answers that strictly cite source IDs (e.g. `[Doc-101]`).
+  5. **`generate`**: Synthesizes answers using `answer.py`, strictly citing source IDs (e.g. `[Doc-101]`).
 * **Offline Evaluation (`rag_eval.py`)**: Executes an automated pipeline over a suite of 15 standard queries (10 in-domain, 5 out-of-domain) and asserts a **100% Out-of-Domain Refusal Rate** to prevent hallucination.
 
 ### D. Serving Layer (`src/serving/`)

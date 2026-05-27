@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Intelligence Platform UI</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .tab-container {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background: #ecf0f1;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 5px;
+            margin-top: 5px; /* Added for clean multi-row wrapping on tiny screens */
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+        .tab-button:hover {
+            background: #bdc3c7;
+        }
+        .tab-button.active {
+            background: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 0 5px 5px 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group input[type="file"] {
+            padding: 5px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        /* --- CRITICAL INJECTED FIXED RULES FOR PRE & CODE OVERFLOWS --- */
+        .result pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            word-wrap: break-word;
+        }
+        .success {
+            color: #27ae60;
+            background: #d5f5e3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            word-wrap: break-word;
+        }
+        /* --- RESPONSIVE TABLE CONFIG --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            table-layout: fixed; /* Ensures width distributions stay exact without expanding layout margins */
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            word-break: break-word; /* Prevents long field data strings from popping table boundaries */
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Meridian Customer Intelligence Platform</h1>
+        <p>Unified API for predictive modeling and complaint analysis</p>
+    </header>
+
+    <div class="tab-container">
+        <button class="tab-button active" data-tab="health">Health Check</button>
+        <button class="tab-button" data-tab="predict">Single Prediction</button>
+        <button class="tab-button" data-tab="batch">Batch Scoring</button>
+        <button class="tab-button" data-tab="ask">Ask Complaints</button>
+        <button class="tab-button" data-tab="intel">Customer Intel</button>
+    </div>
+
+    <div id="health" class="tab-content active">
+        <h2>System Health Check</h2>
+        <button id="healthBtn">Check Health</button>
+        <div id="healthResult" class="result"></div>
+    </div>
+
+    <div id="predict" class="tab-content">
+        <h2>Single Customer Prediction</h2>
+        <form id="predictForm">
+            <div class="form-group">
+                <label for="customerId">Customer ID (CUST*)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="customerId" name="customerId" placeholder="CUST101" required style="flex: 1;">
+                    <button type="button" id="autofillPredictBtn" style="background: #2ecc71;">Autofill</button>
+                </div>
+                <span id="predictAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
+            </div>
+            <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" id="age" name="age" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="education">Education Level</label>
+                <input type="text" id="education" name="education" placeholder="tertiary" required>
+            </div>
+            <div class="form-group">
+                <label for="job">Job Sector</label>
+                <input type="text" id="job" name="job" placeholder="management" required>
+            </div>
+            <div class="form-group">
+                <label for="balance">Account Balance</label>
+                <input type="number" id="balance" name="balance" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="duration">Last Contact Duration (seconds)</label>
+                <input type="number" id="duration" name="duration" min="0" required>
+            </div>
+            <div class="form-group">
+                <label for="complaint">Customer Complaint</label>
+                <textarea id="complaint" name="complaint" rows="3" placeholder="Unexpected transaction fees charged." required></textarea>
+            </div>
+            <button type="submit">Get Prediction</button>
+        </form>
+        <div id="predictResult" class="result"></div>
+    </div>
+
+    <div id="batch" class="tab-content">
+        <h2>Batch Scoring (CSV Upload)</h2>
+        <form id="batchForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="csvFile">Upload CSV File</label>
+                <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
+                <small>File must contain columns: customer_id, age, education, job, balance, duration, complaint</small>
+            </div>
+            <button type="submit">Process Batch</button>
+        </form>
+        <div id="batchResult" class="result"></div>
+    </div>
+
+    <div id="ask" class="tab-content">
+        <h2>Ask About Complaints (RAG)</h2>
+        <form id="askForm">
+            <div class="form-group">
+                <label for="question">Your Question</label>
+                <textarea id="question" name="question" rows="3" placeholder="Why was my debit card blocked?" required></textarea>
+            </div>
+            <button type="submit">Ask Question</button>
+        </form>
+        <div id="askResult" class="result"></div>
+    </div>
+
+    <div id="intel" class="tab-content">
+        <h2>Customer Intelligence (Prediction + Complaint Insights)</h2>
+        <form id="intelForm">
+            <div class="form-group">
+                <label for="intelCustomerId">Customer ID (CUST*)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="intelCustomerId" name="intelCustomerId" placeholder="CUST101" required style="flex: 1;">
+                    <button type="button" id="autofillIntelBtn" style="background: #2ecc71;">Autofill</button>
+                </div>
+                <span id="intelAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
+            </div>
+            <div class="form-group">
+                <label for="intelAge">Age</label>
+                <input type="number" id="intelAge" name="intelAge" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="intelEducation">Education Level</label>
+                <input type="text" id="intelEducation" name="intelEducation" placeholder="tertiary" required>
+            </div>
+            <div class="form-group">
+                <label for="intelJob">Job Sector</label>
+                <input type="text" id="intelJob" name="intelJob" placeholder="management" required>
+            </div>
+            <div class="form-group">
+                <label for="intelBalance">Account Balance</label>
+                <input type="number" id="intelBalance" name="intelBalance" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="intelDuration">Last Contact Duration (seconds)</label>
+                <input type="number" id="intelDuration" name="intelDuration" min="0" required>
+            </div>
+            <div class="form-group">
+                <label for="intelComplaint">Customer Complaint</label>
+                <textarea id="intelComplaint" name="intelComplaint" rows="3" placeholder="Unexpected transaction fees charged." required></textarea>
+            </div>
+            <button type="submit">Get Customer Intelligence</button>
+        </form>
+        <div id="intelResult" class="result"></div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE_URL = '/api';
+
+        // Tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Deactivate all tabs
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                // Activate clicked tab
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Health Check
+        document.getElementById('healthBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = '<div class="loading">Checking system health...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                resultDiv.classList.add('success');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                resultDiv.classList.remove('success');
+            }
+        });
+
+        // Single Prediction
+        document.getElementById('predictForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('predictResult');
+            resultDiv.innerHTML = '<div class="loading">Making prediction...</div>';
+            resultDiv.classList.remove('success', 'error');
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = {
+                    customer_id: formData.get('customerId'),
+                    age: parseInt(formData.get('age')),
+                    education: formData.get('education'),
+                    job: formData.get('job'),
+                    balance: parseFloat(formData.get('balance')),
+                    duration: parseInt(formData.get('duration')),
+                    complaint: formData.get('complaint')
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                resultDiv.classList.add('success');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Batch Scoring
+        document.getElementById('batchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('batchResult');
+            resultDiv.innerHTML = '<div class="loading">Processing batch file...</div>';
+            resultDiv.classList.remove('success', 'error');
+            
+            try {
+                const formData = new FormData();
+                const fileInput = document.getElementById('csvFile');
+                formData.append('file', fileInput.files[0]);
+                
+                const response = await fetch(`${API_BASE_URL}/batch-score`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                
+                const results = await response.json();
+                
+                // Extract predictions array (handles both BatchScoreResponse and flat array)
+                const predictions = Array.isArray(results) ? results : (results.predictions || []);
+                
+                // Create a table to display results
+                let tableHtml = '<table><thead><tr>';
+                tableHtml += '<th>Customer ID</th><th>Prediction</th><th>Probability</th><th>Probability Band</th>';
+                tableHtml += '</tr></thead><tbody>';
+                
+                predictions.forEach(result => {
+                    tableHtml += `<tr>
+                        <td>${result.customer_id}</td>
+                        <td>${result.conversion_prediction}</td>
+                        <td>${result.conversion_probability}</td>
+                        <td>${result.probability_band}</td>
+                    </tr>`;
+                });
+                
+                tableHtml += '</tbody></table>';
+                resultDiv.innerHTML = `<h3>Batch Results (${predictions.length} records)</h3>${tableHtml}`;
+                resultDiv.classList.add('success');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Ask Complaints
+        document.getElementById('askForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('askResult');
+            resultDiv.innerHTML = '<div class="loading">Processing your question...</div>';
+            resultDiv.classList.remove('success', 'error');
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = {
+                    question: formData.get('question')
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/ask-complaints`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                resultDiv.classList.add('success');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Customer Intel
+        document.getElementById('intelForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('intelResult');
+            resultDiv.innerHTML = '<div class="loading">Getting customer intelligence...</div>';
+            resultDiv.classList.remove('success', 'error');
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = {
+                    customer: {
+                        customer_id: formData.get('intelCustomerId'),
+                        age: parseInt(formData.get('intelAge')),
+                        education: formData.get('intelEducation'),
+                        job: formData.get('intelJob'),
+                        balance: parseFloat(formData.get('intelBalance')),
+                        duration: parseInt(formData.get('intelDuration')),
+                        complaint: formData.get('intelComplaint')
+                    },
+                    question: formData.get('intelQuestion')
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/customer-intel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                resultDiv.classList.add('success');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Autofill helper function
+        async function performAutofill(customerId, fields, statusSpanId) {
+            const statusSpan = document.getElementById(statusSpanId);
+            if (!customerId) {
+                statusSpan.style.color = '#e74c3c';
+                statusSpan.textContent = 'Please enter a Customer ID first.';
+                return;
+            }
+            
+            statusSpan.style.color = '#7f8c8d';
+            statusSpan.textContent = 'Fetching details...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/customer-details/${customerId}`);
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || `Customer not found (${response.status})`);
+                }
+                
+                const data = await response.json();
+                
+                // Populate all fields
+                for (const [fieldId, key] of Object.entries(fields)) {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.value = data[key] !== undefined ? data[key] : '';
+                }
+                
+                statusSpan.style.color = '#27ae60';
+                statusSpan.textContent = `Success! Loaded details (${data.cache_status === 'HIT' ? 'Cache HIT' : 'Cache MISS'})`;
+            } catch (error) {
+                statusSpan.style.color = '#e74c3c';
+                statusSpan.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Single Prediction Autofill Trigger
+        document.getElementById('autofillPredictBtn').addEventListener('click', () => {
+            const custId = document.getElementById('customerId').value.trim();
+            const fields = {
+                'age': 'age',
+                'education': 'education',
+                'job': 'job',
+                'balance': 'balance',
+                'duration': 'duration',
+                'complaint': 'complaint'
+            };
+            performAutofill(custId, fields, 'predictAutofillStatus');
+        });
+
+        // Customer Intel Autofill Trigger
+        document.getElementById('autofillIntelBtn').addEventListener('click', () => {
+            const custId = document.getElementById('intelCustomerId').value.trim();
+            const fields = {
+                'intelAge': 'age',
+                'intelEducation': 'education',
+                'intelJob': 'job',
+                'intelBalance': 'balance',
+                'intelDuration': 'duration',
+                'intelComplaint': 'complaint'
+            };
+            performAutofill(custId, fields, 'intelAutofillStatus');
+        });
+    </script>
+</body>
+</html>

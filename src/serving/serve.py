@@ -131,6 +131,13 @@ async def serve_ui():
         return HTMLResponse(content=ui_path.read_text(), status_code=200)
     return HTMLResponse(content="<h1>UI not found</h1>", status_code=404)
 
+@app.get("/test-endpoint", include_in_schema=False)
+async def serve_test_endpoint():
+    ui_path = PROJECT_ROOT / "ui" / "test.html"
+    if ui_path.exists():
+        return HTMLResponse(content=ui_path.read_text(), status_code=200)
+    return HTMLResponse(content="<h1>UI not found</h1>", status_code=404)
+
 # ── MLflow Inference Tracking ────────────────────────────────────────────────
 INFERENCE_RUN = None
 _inference_step = 0
@@ -559,6 +566,27 @@ def get_customer_details_endpoint(customer_id: str):
             detail=f"Customer details for ID '{customer_id}' not found."
         )
     return details
+
+@api_router.get("/mock-users", tags=["Unified Plane"])
+def get_mock_users():
+    """Retrieves random mock users from synthetic_train.csv."""
+    import csv
+    import random
+    from src.config import DATA_DIR
+    csv_path = DATA_DIR / "synthetic_train.csv"
+    users = []
+    if csv_path.exists():
+        with open(csv_path, mode="r", encoding="utf-8") as f:
+            reader = list(csv.DictReader(f))
+            if reader:
+                samples = random.sample(reader, min(3, len(reader)))
+                for idx, row in enumerate(samples):
+                    users.append({
+                        "id": row.get("customer_id", f"CUST-RND{idx}"),
+                        "name": f"Mock User {idx+1}",
+                        "complaints": [row.get("complaint", "General inquiry")]
+                    })
+    return users
 
 @api_router.post("/submit-support-response", tags=["Unified Plane"])
 def submit_support_response(request: SubmitSupportResponseRequest):

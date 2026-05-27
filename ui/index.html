@@ -1,592 +1,1305 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Intelligence Platform UI</title>
+    <title>Customer CRM</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/pastel-glyph/64/online-support.png">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        /* Minimalistic Pastel Theme, No Shadows, No Gradients */
+        :root {
+            --bg-color: #fdfbf7;
+            --sidebar-bg: #f4ebd9;
+            --card-bg: #ffffff;
+            --border-color: #333333;
+            --primary-btn: #d5e1df;
+            --primary-btn-hover: #c4d4d1;
+            --text-color: #333333;
+            --text-muted: #666666;
+            --pastel-red: #f2cdd0;
+            --pastel-yellow: #f8e5c0;
+            --pastel-green: #dcedc8;
         }
+
+        :root[data-theme="dark"] {
+            --bg-color: #121212;
+            --sidebar-bg: #1c1c1c;
+            --card-bg: #1e1e1e;
+            --border-color: #333333;
+            --primary-btn: #2c2c2c;
+            --primary-btn-hover: #3a3a3a;
+            --text-color: #e0e0e0;
+            --text-muted: #999999;
+            --pastel-red: #9e4b4b;
+            --pastel-yellow: #a88b32;
+            --pastel-green: #4f7a4f;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
         }
-        header {
-            background: #2c3e50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 5px;
-            margin-bottom: 30px;
-        }
-        .tab-container {
-            display: flex;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        .tab-button {
-            background: #ecf0f1;
-            border: none;
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-right: 5px;
-            margin-top: 5px; /* Added for clean multi-row wrapping on tiny screens */
-            border-top-left-radius: 5px;
-            border-top-right-radius: 5px;
-        }
-        .tab-button:hover {
-            background: #bdc3c7;
-        }
-        .tab-button.active {
-            background: #3498db;
-            color: white;
-        }
-        .tab-content {
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        *::-webkit-scrollbar {
             display: none;
-            background: white;
-            padding: 20px;
-            border-radius: 0 5px 5px 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .tab-content.active {
-            display: block;
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        * {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
         }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Login Page */
+        #login-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: var(--sidebar-bg);
+        }
+
+        .login-box {
+            border: 2px solid var(--border-color);
+            background-color: var(--card-bg);
+            padding: 2rem;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        input[type="password"],
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            background-color: var(--card-bg);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            background-color: var(--primary-btn);
+            color: var(--text-color);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-btn-hover);
+        }
+
+        .passwords-hint {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .error-msg {
+            color: #d9534f;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* App Layout */
+        #app-view {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-right: 2px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .sidebar h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem 0.25rem;
+            border-radius: 4px;
+            color: var(--text-color);
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
+        }
+        
+        .theme-toggle:hover {
+            background-color: var(--primary-btn);
+        }
+
+        .sidebar h2 img {
+            width: 36px;
+            height: 36px;
+        }
+
+        .nav-btn {
+            background-color: transparent;
+            border: 2px solid transparent;
+            text-align: left;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .nav-btn.active,
+        .nav-btn:hover {
+            background-color: var(--primary-btn);
+            border: 2px solid var(--border-color);
+        }
+
+        .logout-btn {
+            margin-top: auto;
+            background-color: var(--pastel-red);
+        }
+
+        .logout-btn:hover {
+            background-color: #eabfc2;
+        }
+
+        /* Main Content */
+        .content {
+            flex-grow: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background-color: var(--bg-color);
+        }
+
+        .section-title {
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Grid & Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border: 2px solid var(--border-color);
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            background-color: var(--pastel-yellow);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        /* Form */
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 1.5rem;
         }
+
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 0.5rem;
             font-weight: bold;
         }
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
+
+        textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
         }
-        .form-group input[type="file"] {
-            padding: 5px;
+
+        textarea:focus {
+            background-color: var(--card-bg);
         }
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 16px;
-            transition: background 0.3s;
+
+        /* Results & Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border: 2px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: bold;
         }
-        button:hover {
-            background: #2980b9;
+
+        .badge.High {
+            background-color: var(--pastel-green);
         }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background: #ecf0f1;
-            border-radius: 4px;
+
+        .badge.Medium {
+            background-color: var(--pastel-yellow);
+        }
+
+        .badge.Low {
+            background-color: var(--pastel-red);
+        }
+
+        .result-box {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background-color: var(--sidebar-bg);
+            border: 2px solid var(--border-color);
+        }
+
+        .result-box pre {
             white-space: pre-wrap;
-            word-wrap: break-word;
+            font-family: inherit;
+            margin: 0;
+        }
+
+        /* Support Inbox Layout */
+        #tab-support {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #tab-support.hidden {
+            display: none !important;
+        }
+
+        .support-container {
+            display: flex;
+            flex-grow: 1;
+            border: 2px solid var(--border-color);
+            background-color: var(--card-bg);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .chat-list {
+            width: 300px;
+            border-right: 2px solid var(--border-color);
+            background-color: var(--sidebar-bg);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .chat-item {
+            padding: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .chat-item:hover,
+        .chat-item.active {
+            background-color: var(--primary-btn);
+        }
+
+        .chat-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-item-preview {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-detail {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--card-bg);
+            min-width: 0;
+        }
+
+        .chat-header {
+            flex-shrink: 0;
+            padding: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            background-color: var(--sidebar-bg);
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chat-messages {
+            flex: 1 1 auto;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 0;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
             word-break: break-word;
         }
-        /* --- CRITICAL INJECTED FIXED RULES FOR PRE & CODE OVERFLOWS --- */
-        .result pre {
+
+        .message.customer {
+            align-self: flex-start;
+            background-color: var(--primary-btn);
+        }
+
+        .message.agent {
+            align-self: flex-end;
+            background-color: var(--pastel-green);
+        }
+
+        .ai-panel {
+            flex-shrink: 0;
+            border-top: 2px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
+            background-color: var(--pastel-yellow);
+            padding: 1rem;
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #ai-content {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        #ai-content p {
+            flex-shrink: 0;
+        }
+
+        .ai-resizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            cursor: ns-resize;
+            z-index: 10;
+        }
+
+        .ai-panel h4 {
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .ai-panel pre {
             white-space: pre-wrap;
-            word-break: break-all;
+            font-family: inherit;
+            margin: 0;
+            background: var(--bg-color);
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            overflow-y: auto;
+            flex-grow: 1;
+            min-height: 0;
         }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
+
+        .chat-input-area {
+            flex-shrink: 0;
+            padding: 1rem;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
-        .error {
-            color: #e74c3c;
-            background: #fadbd8;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 10px;
-            word-wrap: break-word;
+
+        .chat-input-area textarea {
+            min-height: 80px;
+            margin: 0;
         }
-        .success {
-            color: #27ae60;
-            background: #d5f5e3;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 10px;
-            word-wrap: break-word;
+
+        .chat-actions {
+            display: flex;
+            justify-content: flex-end;
         }
-        /* --- RESPONSIVE TABLE CONFIG --- */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            table-layout: fixed; /* Ensures width distributions stay exact without expanding layout margins */
+
+        .btn-send {
+            width: auto;
+            padding: 0.75rem 2rem;
+            background-color: var(--pastel-green);
         }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            word-break: break-word; /* Prevents long field data strings from popping table boundaries */
+
+        .dev-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            justify-content: center;
         }
-        th {
-            background-color: #f2f2f2;
-        }
-        tr:hover {
-            background-color: #f5f5f5;
+
+        .dev-mode-toggle input {
+            width: auto;
+            margin: 0;
         }
     </style>
 </head>
+
 <body>
-    <header>
-        <h1>Meridian Customer Intelligence Platform</h1>
-        <p>Unified API for predictive modeling and complaint analysis</p>
-    </header>
 
-    <div class="tab-container">
-        <button class="tab-button active" data-tab="health">Health Check</button>
-        <button class="tab-button" data-tab="predict">Single Prediction</button>
-        <button class="tab-button" data-tab="batch">Batch Scoring</button>
-        <button class="tab-button" data-tab="ask">Ask Complaints</button>
-        <button class="tab-button" data-tab="intel">Customer Intel</button>
+    <!-- Login View -->
+    <div id="login-view" style="position: relative;">
+        <button onclick="window.location.href='/test-endpoint'" style="position: absolute; top: 1rem; right: 1rem; width: auto; background-color: var(--pastel-yellow);">Test endpoint</button>
+        <div class="login-box">
+            <h2>CRM Login</h2>
+            <div id="login-error" class="error-msg hidden">Invalid password.</div>
+            <input type="password" id="password-input" placeholder="Enter password" autocomplete="new-password">
+            <div class="dev-mode-toggle">
+                <input type="checkbox" id="dev-mode-checkbox">
+                <label for="dev-mode-checkbox">Dev Mode</label>
+            </div>
+            <button onclick="handleLogin()">Login</button>
+            <div class="passwords-hint">
+                <strong>admin</strong>, <strong>sales</strong>, <strong>support</strong>
+            </div>
+        </div>
     </div>
 
-    <div id="health" class="tab-content active">
-        <h2>System Health Check</h2>
-        <button id="healthBtn">Check Health</button>
-        <div id="healthResult" class="result"></div>
-    </div>
+    <!-- App View -->
+    <div id="app-view" class="hidden">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2><img width="64" height="64" src="https://img.icons8.com/pastel-glyph/64/online-support.png" alt="online-support"/>CRM</h2>
+                <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark Mode"></button>
+            </div>
+            <button class="nav-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="switchTab('predict')">Predict</button>
+            <button class="nav-btn" onclick="switchTab('batch')">Batch Predict</button>
+            <button class="nav-btn" onclick="switchTab('ask')">Ask Insights</button>
+            <button class="nav-btn" onclick="switchTab('support')">Support Inbox</button>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
 
-    <div id="predict" class="tab-content">
-        <h2>Single Customer Prediction</h2>
-        <form id="predictForm">
-            <div class="form-group">
-                <label for="customerId">Customer ID (CUST*)</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="customerId" name="customerId" placeholder="CUST101" required style="flex: 1;">
-                    <button type="button" id="autofillPredictBtn" style="background: #2ecc71;">Autofill</button>
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Dashboard Tab -->
+            <div id="tab-dashboard">
+                <div class="section-title">
+                    <h1>Dashboard</h1>
+                    <button style="width: auto; padding: 0.5rem 1rem;" onclick="loadMetrics()">Refresh</button>
                 </div>
-                <span id="predictAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
-            </div>
-            <div class="form-group">
-                <label for="age">Age</label>
-                <input type="number" id="age" name="age" min="1" required>
-            </div>
-            <div class="form-group">
-                <label for="education">Education Level</label>
-                <input type="text" id="education" name="education" placeholder="tertiary" required>
-            </div>
-            <div class="form-group">
-                <label for="job">Job Sector</label>
-                <input type="text" id="job" name="job" placeholder="management" required>
-            </div>
-            <div class="form-group">
-                <label for="balance">Account Balance</label>
-                <input type="number" id="balance" name="balance" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <label for="duration">Last Contact Duration (seconds)</label>
-                <input type="number" id="duration" name="duration" min="0" required>
-            </div>
-            <button type="submit">Get Prediction</button>
-        </form>
-        <div id="predictResult" class="result"></div>
-    </div>
-
-    <div id="batch" class="tab-content">
-        <h2>Batch Scoring (CSV Upload)</h2>
-        <form id="batchForm" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="csvFile">Upload CSV File</label>
-                <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
-                <small>File must contain columns: customer_id, age, education, job, balance, duration, complaint</small>
-            </div>
-            <button type="submit">Process Batch</button>
-        </form>
-        <div id="batchResult" class="result"></div>
-    </div>
-
-    <div id="ask" class="tab-content">
-        <h2>Ask About Complaints (RAG)</h2>
-        <form id="askForm">
-            <div class="form-group">
-                <label for="question">Your Question</label>
-                <textarea id="question" name="question" rows="3" placeholder="Why was my debit card blocked?" required></textarea>
-            </div>
-            <button type="submit">Ask Question</button>
-        </form>
-        <div id="askResult" class="result"></div>
-    </div>
-
-    <div id="intel" class="tab-content">
-        <h2>Customer Intelligence (Prediction + Complaint Insights)</h2>
-        <form id="intelForm">
-            <div class="form-group">
-                <label for="intelCustomerId">Customer ID (CUST*)</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="intelCustomerId" name="intelCustomerId" placeholder="CUST101" required style="flex: 1;">
-                    <button type="button" id="autofillIntelBtn" style="background: #2ecc71;">Autofill</button>
+                <div class="grid">
+                    <div class="card stat-card">
+                        <h3>Total Requests</h3>
+                        <p id="stat-requests">-</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Avg Latency (ms)</h3>
+                        <p id="stat-latency">-</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>RAG Hit Rate</h3>
+                        <p id="stat-rag">-</p>
+                    </div>
                 </div>
-                <span id="intelAutofillStatus" style="font-size: 13px; margin-top: 5px; display: block; font-weight: 500;"></span>
+                <div class="card">
+                    <h3>System Health</h3>
+                    <p id="health-status">Checking...</p>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="intelAge">Age</label>
-                <input type="number" id="intelAge" name="intelAge" min="1" required>
+
+            <!-- Predict Tab -->
+            <div id="tab-predict" class="hidden">
+                <div class="section-title">
+                    <h1>Predict</h1>
+                </div>
+                <div class="card">
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                        <button onclick="autofillPredict()"
+                            style="width: auto; background-color: var(--pastel-yellow); padding: 0.5rem 1rem; font-size: 0.8rem;">Autofill
+                            Random Data</button>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label>Customer ID</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="pred-customer-id" placeholder="CUST-XXXX" style="flex-grow: 1; margin: 0;">
+                                <button onclick="fetchCustomerDetails()" style="width: auto; margin: 0; padding: 0 1rem; font-size: 0.9rem;">Fetch</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Age</label>
+                            <input type="number" id="pred-age" placeholder="30">
+                        </div>
+                        <div class="form-group">
+                            <label>Education</label>
+                            <input type="text" id="pred-education" placeholder="tertiary">
+                        </div>
+                        <div class="form-group">
+                            <label>Job</label>
+                            <input type="text" id="pred-job" placeholder="management">
+                        </div>
+                        <div class="form-group">
+                            <label>Account Balance</label>
+                            <input type="number" id="pred-balance" placeholder="1000">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (sec)</label>
+                            <input type="number" id="pred-duration" placeholder="200">
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Complaint (Optional)</label>
+                            <input type="text" id="pred-complaint" placeholder="e.g. Too many fees">
+                        </div>
+                    </div>
+                    <button onclick="submitPredict()">Run Prediction</button>
+                </div>
+
+                <div id="pred-loading" class="hidden" style="margin-top: 1rem; font-weight: bold;">Predicting...</div>
+
+                <div id="pred-results" class="result-box hidden">
+                    <h3>Prediction Results</h3>
+                    <p><strong>Conversion Prob:</strong> <span id="pred-band" class="badge"></span></p>
+                    <p><strong>Probability:</strong> <span id="pred-prob"></span></p>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="intelEducation">Education Level</label>
-                <input type="text" id="intelEducation" name="intelEducation" placeholder="tertiary" required>
+
+            <!-- Batch Score Tab -->
+            <div id="tab-batch" class="hidden">
+                <div class="section-title">
+                    <h1>Batch Score</h1>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label>Upload CSV File</label>
+                        <input type="file" id="batch-file" accept=".csv" style="padding: 1rem 0;">
+                    </div>
+                    <button onclick="submitBatchScore()">Score Batch</button>
+                </div>
+
+                <div id="batch-loading" class="hidden" style="margin-top: 1rem; font-weight: bold;">Scoring batch...
+                </div>
+
+                <div id="batch-results" class="result-box hidden">
+                    <h3>Batch Results</h3>
+                    <p><strong>Output Saved To:</strong></p>
+                    <pre id="batch-path"
+                        style="background: var(--card-bg); padding: 1rem; border: 2px solid var(--border-color);"></pre>
+                    <p><strong>Counts by Conversion Band:</strong></p>
+                    <ul id="batch-counts" style="margin-top: 0;"></ul>
+                    <p><strong>Individual Predictions:</strong></p>
+                    <div
+                        style="max-height: 300px; overflow-y: auto; background: var(--card-bg); border: 2px solid var(--border-color);">
+                        <table id="batch-predictions"
+                            style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                            <thead
+                                style="background-color: var(--sidebar-bg); position: sticky; top: 0; box-shadow: 0 2px 0 var(--border-color);">
+                                <tr>
+                                    <th style="padding: 0.5rem; border-bottom: 2px solid var(--border-color);">Customer
+                                        ID</th>
+                                    <th style="padding: 0.5rem; border-bottom: 2px solid var(--border-color);">
+                                        Prediction</th>
+                                    <th style="padding: 0.5rem; border-bottom: 2px solid var(--border-color);">
+                                        Probability</th>
+                                    <th style="padding: 0.5rem; border-bottom: 2px solid var(--border-color);">Band</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="intelJob">Job Sector</label>
-                <input type="text" id="intelJob" name="intelJob" placeholder="management" required>
+
+            <!-- Ask Complaints Tab -->
+            <div id="tab-ask" class="hidden">
+                <div class="section-title">
+                    <h1>Ask Complaints</h1>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label>Question</label>
+                        <textarea id="ask-question"
+                            placeholder="E.g. What are people saying about credit cards?"></textarea>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label>Filter: Product (Optional)</label>
+                            <input type="text" id="ask-product" placeholder="e.g. credit card">
+                        </div>
+                        <div class="form-group">
+                            <label>Filter: Company (Optional)</label>
+                            <input type="text" id="ask-company" placeholder="e.g. Acme Corp">
+                        </div>
+                        <div class="form-group">
+                            <label>Filter: Date (Optional)</label>
+                            <input type="text" id="ask-date" placeholder="e.g. 2023">
+                        </div>
+                        <div class="form-group">
+                            <label>Filter: Issue (Optional)</label>
+                            <input type="text" id="ask-issue" placeholder="e.g. late fees">
+                        </div>
+                    </div>
+                    <button onclick="submitAskComplaints()">Ask RAG Agent</button>
+                </div>
+
+                <div id="ask-loading" class="hidden" style="margin-top: 1rem; font-weight: bold;">Searching knowledge
+                    base...</div>
+
+                <div id="ask-results" class="result-box hidden">
+                    <h3>RAG Response</h3>
+                    <p><strong>Score:</strong> <span id="ask-score"></span> | <strong>Latency:</strong> <span
+                            id="ask-latency"></span>ms</p>
+                    <p><strong>Answer:</strong></p>
+                    <pre id="ask-answer"
+                        style="background: var(--card-bg); padding: 1rem; border: 2px solid var(--border-color);"></pre>
+                    <p><strong>Sufficiency Note:</strong></p>
+                    <pre id="ask-note"></pre>
+                    <p><strong>Citations:</strong></p>
+                    <pre id="ask-citations"></pre>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="intelBalance">Account Balance</label>
-                <input type="number" id="intelBalance" name="intelBalance" step="0.01" required>
+
+            <!-- Support Inbox Tab -->
+            <div id="tab-support" class="hidden">
+                <div class="section-title">
+                    <h1>Support Inbox</h1>
+                </div>
+
+                <div class="support-container">
+                    <!-- Chat List -->
+                    <div class="chat-list" id="chat-list">
+                        <!-- Chat Items populated by JS -->
+                        <div style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No active chats
+                        </div>
+                    </div>
+
+                    <!-- Chat Detail -->
+                    <div class="chat-detail" id="chat-detail" style="display: none;">
+                        <div class="chat-header">
+                            <span id="chat-customer-name">Customer Name</span>
+                            <span id="chat-customer-id" class="badge">CUST-ID</span>
+                        </div>
+
+                        <div class="chat-messages" id="chat-messages">
+                            <!-- Messages populated by JS -->
+                        </div>
+
+                        <!-- AI Panel (RAG) -->
+                        <div class="ai-panel hidden" id="ai-panel">
+                            <div id="ai-resizer" class="ai-resizer" title="Drag to resize"></div>
+                            <h4>Customer Intelligence</h4>
+                            <div id="ai-loading" class="hidden">Thinking... fetching RAG context...</div>
+                            <div id="ai-content" class="hidden">
+                                <p><strong>Conversion Prob:</strong> <span id="ai-band" class="badge"></span></p>
+                                <p><strong>Retrieved Themes & Context:</strong></p>
+                                <pre id="ai-themes"></pre>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-area">
+                            <textarea id="chat-reply-input"
+                                placeholder="Type your reply here... (AI suggestion will appear here)"></textarea>
+                            <div class="chat-actions">
+                                <button class="btn-send" onclick="sendReply()">Send Reply</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="chat-empty-state"
+                        style="flex-grow: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); background-color: var(--bg-color);">
+                        <p>Select a chat from the list to start replying.</p>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="intelDuration">Last Contact Duration (seconds)</label>
-                <input type="number" id="intelDuration" name="intelDuration" min="0" required>
-            </div>
-            <div class="form-group">
-                <label for="intelComplaint">Customer Complaint</label>
-                <textarea id="intelComplaint" name="intelComplaint" rows="3" placeholder="Unexpected transaction fees charged." required></textarea>
-            </div>
-            <button type="submit">Get Customer Intelligence</button>
-        </form>
-        <div id="intelResult" class="result"></div>
+        </div>
     </div>
 
     <script>
-        // API base URL
-        const API_BASE_URL = '/api';
+        const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
-        // Tab switching functionality
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-                // Deactivate all tabs
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-                // Activate clicked tab
-                button.classList.add('active');
-                const tabId = button.getAttribute('data-tab');
-                document.getElementById(tabId).classList.add('active');
-            });
-        });
-
-        // Health Check
-        document.getElementById('healthBtn').addEventListener('click', async () => {
-            const resultDiv = document.getElementById('healthResult');
-            resultDiv.innerHTML = '<div class="loading">Checking system health...</div>';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/health`);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                resultDiv.classList.add('success');
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-                resultDiv.classList.remove('success');
-            }
-        });
-
-        // Single Prediction
-        document.getElementById('predictForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const resultDiv = document.getElementById('predictResult');
-            resultDiv.innerHTML = '<div class="loading">Making prediction...</div>';
-            resultDiv.classList.remove('success', 'error');
-            
-            try {
-                const formData = new FormData(e.target);
-                const data = {
-                    customer_id: formData.get('customerId'),
-                    age: parseInt(formData.get('age')),
-                    education: formData.get('education'),
-                    job: formData.get('job'),
-                    balance: parseFloat(formData.get('balance')),
-                    duration: parseInt(formData.get('duration'))
-                };
-                
-                const response = await fetch(`${API_BASE_URL}/predict`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-                resultDiv.classList.add('success');
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
-        });
-
-        // Batch Scoring
-        document.getElementById('batchForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const resultDiv = document.getElementById('batchResult');
-            resultDiv.innerHTML = '<div class="loading">Processing batch file...</div>';
-            resultDiv.classList.remove('success', 'error');
-            
-            try {
-                const formData = new FormData();
-                const fileInput = document.getElementById('csvFile');
-                formData.append('file', fileInput.files[0]);
-                
-                const response = await fetch(`${API_BASE_URL}/batch-score`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-                
-                const results = await response.json();
-                
-                // Extract predictions array (handles both BatchScoreResponse and flat array)
-                const predictions = Array.isArray(results) ? results : (results.predictions || []);
-                
-                // Create a table to display results
-                let tableHtml = '<table><thead><tr>';
-                tableHtml += '<th>Customer ID</th><th>Prediction</th><th>Probability</th><th>Probability Band</th>';
-                tableHtml += '</tr></thead><tbody>';
-                
-                predictions.forEach(result => {
-                    tableHtml += `<tr>
-                        <td>${result.customer_id}</td>
-                        <td>${result.conversion_prediction}</td>
-                        <td>${result.conversion_probability}</td>
-                        <td>${result.probability_band}</td>
-                    </tr>`;
-                });
-                
-                tableHtml += '</tbody></table>';
-                resultDiv.innerHTML = `<h3>Batch Results (${predictions.length} records)</h3>${tableHtml}`;
-                resultDiv.classList.add('success');
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
-        });
-
-        // Ask Complaints
-        document.getElementById('askForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const resultDiv = document.getElementById('askResult');
-            resultDiv.innerHTML = '<div class="loading">Processing your question...</div>';
-            resultDiv.classList.remove('success', 'error');
-            
-            try {
-                const formData = new FormData(e.target);
-                const data = {
-                    question: formData.get('question')
-                };
-                
-                const response = await fetch(`${API_BASE_URL}/ask-complaints`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-                resultDiv.classList.add('success');
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
-        });
-
-        // Customer Intel
-        document.getElementById('intelForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const resultDiv = document.getElementById('intelResult');
-            resultDiv.innerHTML = '<div class="loading">Getting customer intelligence...</div>';
-            resultDiv.classList.remove('success', 'error');
-            
-            try {
-                const formData = new FormData(e.target);
-                const data = {
-                    customer: {
-                        customer_id: formData.get('intelCustomerId'),
-                        age: parseInt(formData.get('intelAge')),
-                        education: formData.get('intelEducation'),
-                        job: formData.get('intelJob'),
-                        balance: parseFloat(formData.get('intelBalance')),
-                        duration: parseInt(formData.get('intelDuration')),
-                        complaint: formData.get('intelComplaint')
-                    }
-                };
-                
-                const response = await fetch(`${API_BASE_URL}/customer-intel`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                
-                let html = `<h3>Intelligence Results</h3>`;
-                html += `<p><strong>Customer ID:</strong> ${result.customer_id}</p>`;
-                html += `<p><strong>Conversion Band:</strong> ${result.conversion_band}</p>`;
-                html += `<p><strong>Themes:</strong> ${result.top_complaint_themes}</p>`;
-                
-                if (result.suggested_response) {
-                    html += `<div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ccc; border-radius: 5px;">`;
-                    html += `<h4>Suggested Support Response</h4>`;
-                    html += `<p style="font-size: 14px; color: #666; margin-bottom: 10px;">Review and edit the suggested response below before sending it to the customer.</p>`;
-                    html += `<textarea id="editedResponse" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">${result.suggested_response}</textarea>`;
-                    html += `<button type="button" id="sendResponseBtn" style="background: #27ae60;">Send to Customer</button>`;
-                    html += `<span id="sendResponseStatus" style="margin-left: 10px; font-weight: bold; font-size: 14px;"></span>`;
-                    html += `</div>`;
-                } else {
-                    html += `<hr style="margin: 15px 0;"><pre style="font-size: 12px; color: #555;">${JSON.stringify(result, null, 2)}</pre>`;
-                }
-                
-                resultDiv.innerHTML = html;
-                resultDiv.classList.add('success');
-
-                // Attach event listener to the send button if it exists
-                const sendBtn = document.getElementById('sendResponseBtn');
-                if (sendBtn) {
-                    sendBtn.addEventListener('click', async () => {
-                        const editedText = document.getElementById('editedResponse').value;
-                        const statusSpan = document.getElementById('sendResponseStatus');
-                        statusSpan.style.color = '#333';
-                        statusSpan.textContent = 'Sending...';
-                        
-                        try {
-                            const sendRes = await fetch(`${API_BASE_URL}/submit-support-response`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    customer_id: result.customer_id,
-                                    query: formData.get('intelComplaint'),
-                                    response: editedText
-                                })
-                            });
-                            
-                            if (!sendRes.ok) throw new Error('Failed to submit response');
-                            
-                            statusSpan.style.color = '#27ae60';
-                            statusSpan.textContent = 'Response sent and logged for training!';
-                            sendBtn.disabled = true;
-                            sendBtn.style.opacity = '0.5';
-                            document.getElementById('editedResponse').disabled = true;
-                        } catch (err) {
-                            statusSpan.style.color = '#e74c3c';
-                            statusSpan.textContent = 'Error: ' + err.message;
-                        }
-                    });
-                }
-
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
-        });
-
-        // Autofill helper function
-        async function performAutofill(customerId, fields, statusSpanId) {
-            const statusSpan = document.getElementById(statusSpanId);
-            if (!customerId) {
-                statusSpan.style.color = '#e74c3c';
-                statusSpan.textContent = 'Please enter a Customer ID first.';
-                return;
-            }
-            
-            statusSpan.style.color = '#7f8c8d';
-            statusSpan.textContent = 'Fetching details...';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/customer-details/${customerId}`);
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || `Customer not found (${response.status})`);
-                }
-                
-                const data = await response.json();
-                
-                // Populate all fields
-                for (const [fieldId, key] of Object.entries(fields)) {
-                    const el = document.getElementById(fieldId);
-                    if (el) el.value = data[key] !== undefined ? data[key] : '';
-                }
-                
-                statusSpan.style.color = '#27ae60';
-                statusSpan.textContent = `Success! Loaded details (${data.cache_status === 'HIT' ? 'Cache HIT' : 'Cache MISS'})`;
-            } catch (error) {
-                statusSpan.style.color = '#e74c3c';
-                statusSpan.textContent = `Error: ${error.message}`;
+        function updateThemeIcon(theme) {
+            const btn = document.getElementById('theme-toggle-btn');
+            if (btn) {
+                btn.innerHTML = theme === 'dark' ? moonIcon : sunIcon;
             }
         }
 
-        // Single Prediction Autofill Trigger
-        document.getElementById('autofillPredictBtn').addEventListener('click', () => {
-            const custId = document.getElementById('customerId').value.trim();
-            const fields = {
-                'age': 'age',
-                'education': 'education',
-                'job': 'job',
-                'balance': 'balance',
-                'duration': 'duration'
-            };
-            performAutofill(custId, fields, 'predictAutofillStatus');
-        });
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
 
-        // Customer Intel Autofill Trigger
-        document.getElementById('autofillIntelBtn').addEventListener('click', () => {
-            const custId = document.getElementById('intelCustomerId').value.trim();
-            const fields = {
-                'intelAge': 'age',
-                'intelEducation': 'education',
-                'intelJob': 'job',
-                'intelBalance': 'balance',
-                'intelDuration': 'duration',
-                'intelComplaint': 'complaint'
+        // Smart initialization based on localStorage or system preference
+        (function initTheme() {
+            let activeTheme = 'light';
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                activeTheme = 'dark';
+            }
+            if (activeTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+            updateThemeIcon(activeTheme);
+        })();
+
+        const aiResizer = document.getElementById('ai-resizer');
+        const aiPanel = document.getElementById('ai-panel');
+        let isResizingAi = false;
+
+        if (aiResizer && aiPanel) {
+            aiResizer.addEventListener('mousedown', (e) => {
+                isResizingAi = true;
+                document.body.style.cursor = 'ns-resize';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizingAi) return;
+                const bottom = aiPanel.getBoundingClientRect().bottom;
+                const newHeight = bottom - e.clientY;
+                if (newHeight > 50 && newHeight < window.innerHeight * 0.7) {
+                    aiPanel.style.height = `${newHeight}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizingAi) {
+                    isResizingAi = false;
+                    document.body.style.cursor = '';
+                }
+            });
+        }
+
+        const validPasswords = ['admin1', 'sales2', 'support3'];
+
+        let isDevMode = false;
+        let mockChats = [];
+        let activeChatId = null;
+
+        let mockUsers = [];
+
+        async function initMockUsers() {
+            try {
+                const res = await fetch('/api/mock-users');
+                if(res.ok) {
+                    mockUsers = await res.json();
+                } else {
+                    console.error("Failed to load mock users");
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function handleLogin() {
+            const pwd = document.getElementById('password-input').value;
+            isDevMode = document.getElementById('dev-mode-checkbox').checked;
+
+            if (validPasswords.includes(pwd)) {
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('app-view').classList.remove('hidden');
+                loadMetrics();
+                loadHealth();
+
+                if (isDevMode) {
+                    initMockUsers().then(() => generateMockChats());
+                } else {
+                    mockChats = [];
+                    renderChatList();
+                    document.getElementById('chat-detail').style.display = 'none';
+                    document.getElementById('chat-empty-state').style.display = 'flex';
+                }
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function handleLogout() {
+            document.getElementById('password-input').value = '';
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('app-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'predict', 'batch', 'ask', 'support'].forEach(id => {
+                const el = document.getElementById('tab-' + id);
+                if (el) {
+                    el.classList.add('hidden');
+                    if (id === 'support') el.style.display = 'none';
+                }
+            });
+
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+            const targetEl = document.getElementById('tab-' + tabId);
+            if (targetEl) {
+                targetEl.classList.remove('hidden');
+                if (tabId === 'support') targetEl.style.display = 'flex';
+            }
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+        }
+
+        async function loadMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('stat-requests').innerText = data.request_count;
+                    document.getElementById('stat-latency').innerText = data.latency;
+                    const hitRate = data.RAG_retrieval_stats ? (data.RAG_retrieval_stats.retrieval_hit_rate * 100).toFixed(1) : 0;
+                    document.getElementById('stat-rag').innerText = hitRate + '%';
+                }
+            } catch (e) {
+                console.error("Failed to load metrics", e);
+            }
+        }
+
+        async function loadHealth() {
+            try {
+                const res = await fetch('/api/health');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('health-status').innerText = `Status: ${data.status} | Model: ${data.model_version}`;
+                }
+            } catch (e) {
+                document.getElementById('health-status').innerText = 'Offline';
+            }
+        }
+
+        function autofillPredict() {
+            document.getElementById('pred-customer-id').value = 'CUST-' + Math.floor(Math.random() * 10000);
+            document.getElementById('pred-age').value = Math.floor(Math.random() * 60) + 18;
+            document.getElementById('pred-education').value = ['tertiary', 'secondary', 'primary'][Math.floor(Math.random() * 3)];
+            document.getElementById('pred-job').value = ['management', 'technician', 'entrepreneur', 'blue-collar', 'admin.'][Math.floor(Math.random() * 5)];
+            document.getElementById('pred-balance').value = Math.floor(Math.random() * 10000);
+            document.getElementById('pred-duration').value = Math.floor(Math.random() * 600);
+            document.getElementById('pred-complaint').value = '';
+        }
+
+        async function fetchCustomerDetails() {
+            const customerId = document.getElementById('pred-customer-id').value.trim();
+            if(!customerId) {
+                alert('Please enter a Customer ID to fetch details.');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/customer-details/${customerId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('pred-age').value = data.age || '';
+                    document.getElementById('pred-education').value = data.education || '';
+                    document.getElementById('pred-job').value = data.job || '';
+                    document.getElementById('pred-balance').value = data.balance !== undefined ? data.balance : '';
+                    document.getElementById('pred-duration').value = data.duration !== undefined ? data.duration : '';
+                    document.getElementById('pred-complaint').value = data.complaint || '';
+                } else {
+                    alert(`Customer ID '${customerId}' not found.`);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Failed to fetch customer details.');
+            }
+        }
+
+        async function submitPredict() {
+            const payload = {
+                customer_id: document.getElementById('pred-customer-id').value || 'CUST-TEST',
+                age: parseInt(document.getElementById('pred-age').value) || 0,
+                education: document.getElementById('pred-education').value || 'unknown',
+                job: document.getElementById('pred-job').value || 'unknown',
+                balance: parseFloat(document.getElementById('pred-balance').value) || 0,
+                duration: parseInt(document.getElementById('pred-duration').value) || 0,
+                complaint: document.getElementById('pred-complaint').value || undefined
             };
-            performAutofill(custId, fields, 'intelAutofillStatus');
-        });
+
+            document.getElementById('pred-loading').classList.remove('hidden');
+            document.getElementById('pred-results').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                document.getElementById('pred-loading').classList.add('hidden');
+
+                if (res.ok) {
+                    document.getElementById('pred-results').classList.remove('hidden');
+                    const bandSpan = document.getElementById('pred-band');
+                    bandSpan.innerText = data.probability_band;
+                    bandSpan.className = 'badge ' + data.probability_band;
+
+                    document.getElementById('pred-prob').innerText = data.conversion_probability*100 +'%';
+                } else {
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                document.getElementById('pred-loading').classList.add('hidden');
+                alert('Request failed');
+                console.error(e);
+            }
+        }
+
+        async function submitBatchScore() {
+            const fileInput = document.getElementById('batch-file');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a CSV file to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            document.getElementById('batch-loading').classList.remove('hidden');
+            document.getElementById('batch-results').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/batch-score', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+                document.getElementById('batch-loading').classList.add('hidden');
+
+                if (res.ok) {
+                    document.getElementById('batch-results').classList.remove('hidden');
+                    document.getElementById('batch-path').innerText = data.scored_file_path;
+
+                    const countsUl = document.getElementById('batch-counts');
+                    countsUl.innerHTML = '';
+                    for (const [band, count] of Object.entries(data.counts_by_conversion_band)) {
+                        const li = document.createElement('li');
+                        li.innerText = `${band}: ${count}`;
+                        countsUl.appendChild(li);
+                    }
+
+                    const tbody = document.querySelector('#batch-predictions tbody');
+                    tbody.innerHTML = '';
+                    if (data.predictions && data.predictions.length > 0) {
+                        data.predictions.forEach(p => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">${p.customer_id}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">${p.conversion_prediction}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">${p.conversion_probability}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;"><span class="badge ${p.probability_band}">${p.probability_band}</span></td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } else {
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                document.getElementById('batch-loading').classList.add('hidden');
+                alert('Request failed');
+                console.error(e);
+            }
+        }
+
+        async function submitAskComplaints() {
+            const payload = {
+                question: document.getElementById('ask-question').value || '',
+                product: document.getElementById('ask-product').value || undefined,
+                company: document.getElementById('ask-company').value || undefined,
+                date: document.getElementById('ask-date').value || undefined,
+                issue: document.getElementById('ask-issue').value || undefined
+            };
+
+            document.getElementById('ask-loading').classList.remove('hidden');
+            document.getElementById('ask-results').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/ask-complaints', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                document.getElementById('ask-loading').classList.add('hidden');
+
+                if (res.ok) {
+                    document.getElementById('ask-results').classList.remove('hidden');
+                    document.getElementById('ask-score').innerText = (data.relevance_score || 0).toFixed(4);
+                    document.getElementById('ask-latency').innerText = data.latency_ms;
+                    document.getElementById('ask-answer').innerText = data.response || 'N/A';
+                    document.getElementById('ask-note').innerText = data.evidence_sufficiency_note || 'N/A';
+                    document.getElementById('ask-citations').innerText = (data.citations || []).join(', ') || 'None';
+                } else {
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                document.getElementById('ask-loading').classList.add('hidden');
+                alert('Request failed');
+                console.error(e);
+            }
+        }
+
+        // --- Support Inbox Chat Logic ---
+
+        function generateMockChats() {
+            mockChats = mockUsers.map(user => {
+                const complaint = user.complaints[Math.floor(Math.random() * user.complaints.length)];
+                return {
+                    customerId: user.id,
+                    customerName: user.name,
+                    messages: [
+                        { sender: 'customer', text: complaint, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+                    ]
+                };
+            });
+            renderChatList();
+        }
+
+        function renderChatList() {
+            const listEl = document.getElementById('chat-list');
+            listEl.innerHTML = '';
+
+            if (mockChats.length === 0) {
+                listEl.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No active chats</div>';
+                return;
+            }
+
+            mockChats.forEach(chat => {
+                const lastMsg = chat.messages[chat.messages.length - 1];
+                const el = document.createElement('div');
+                el.className = `chat-item ${chat.customerId === activeChatId ? 'active' : ''}`;
+                el.onclick = () => openChat(chat.customerId);
+
+                el.innerHTML = `
+                    <div class="chat-item-header">
+                        <span>${chat.customerName}</span>
+                        <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">${lastMsg.timestamp}</span>
+                    </div>
+                    <div class="chat-item-preview">${lastMsg.text}</div>
+                `;
+                listEl.appendChild(el);
+            });
+        }
+
+        async function openChat(customerId) {
+            activeChatId = customerId;
+            renderChatList(); // update active state
+
+            const chat = mockChats.find(c => c.customerId === customerId);
+            if (!chat) return;
+
+            document.getElementById('chat-empty-state').style.display = 'none';
+            document.getElementById('chat-detail').style.display = 'flex';
+
+            document.getElementById('chat-customer-name').innerText = chat.customerName;
+            document.getElementById('chat-customer-id').innerText = chat.customerId;
+
+            renderMessages(chat.messages);
+
+            // AI Panel Reset
+            const aiPanel = document.getElementById('ai-panel');
+            const aiLoading = document.getElementById('ai-loading');
+            const aiContent = document.getElementById('ai-content');
+            const replyInput = document.getElementById('chat-reply-input');
+
+            replyInput.value = '';
+            aiPanel.classList.remove('hidden');
+            aiLoading.classList.remove('hidden');
+            aiContent.classList.add('hidden');
+
+            const lastCustomerMsg = [...chat.messages].reverse().find(m => m.sender === 'customer');
+            const complaintText = lastCustomerMsg ? lastCustomerMsg.text : "General inquiry";
+
+            // Fetch AI Intel
+            const payload = {
+                customer: {
+                    customer_id: customerId,
+                    age: 30,
+                    education: "tertiary",
+                    job: "management",
+                    balance: 1000,
+                    duration: 200,
+                    complaint: complaintText
+                },
+                question: complaintText
+            };
+
+            try {
+                const res = await fetch('/api/customer-intel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                aiLoading.classList.add('hidden');
+                aiContent.classList.remove('hidden');
+
+                if (res.ok) {
+                    const bandSpan = document.getElementById('ai-band');
+                    bandSpan.innerText = data.conversion_band;
+                    bandSpan.className = 'badge ' + data.conversion_band;
+
+                    let themesText = data.top_complaint_themes || '';
+
+
+                    document.getElementById('ai-themes').innerText = themesText || 'N/A';
+                    replyInput.value = data.suggested_response || '';
+
+                    if (data.cited_ids && data.cited_ids.length > 0) {
+                        themesText = `Cited Sources: ${data.cited_ids.join(', ')}\n\n${themesText}`;
+                    }
+                } else {
+                    document.getElementById('ai-themes').innerText = 'Failed to load insights.';
+                }
+            } catch (e) {
+                aiLoading.classList.add('hidden');
+                aiContent.classList.remove('hidden');
+                document.getElementById('ai-themes').innerText = 'Error connecting to AI service.';
+                console.error(e);
+            }
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = '';
+
+            messages.forEach(msg => {
+                const el = document.createElement('div');
+                el.className = `message ${msg.sender}`;
+                el.innerText = msg.text;
+                container.appendChild(el);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendReply() {
+            if (!activeChatId) return;
+            const input = document.getElementById('chat-reply-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const chat = mockChats.find(c => c.customerId === activeChatId);
+            if (chat) {
+                chat.messages.push({
+                    sender: 'agent',
+                    text: text,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
+
+                input.value = '';
+                document.getElementById('ai-panel').classList.add('hidden');
+                renderMessages(chat.messages);
+                renderChatList();
+
+                // Submit support response for data fly-wheel
+                const lastCustomerMsg = [...chat.messages].reverse().find(m => m.sender === 'customer');
+                if (lastCustomerMsg) {
+                    fetch('/api/submit-support-response', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customer_id: activeChatId,
+                            query: lastCustomerMsg.text,
+                            response: text
+                        })
+                    }).catch(console.error);
+                }
+            }
+        }
     </script>
 </body>
+
 </html>

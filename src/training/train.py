@@ -13,6 +13,10 @@ from sklearn.calibration import calibration_curve
 import lightgbm as lgb
 import joblib
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
 from src.config import (
     MLFLOW_EXPERIMENT_NAME,
     PROJECT_ROOT,
@@ -61,6 +65,8 @@ def main():
     
     # 1. Ingest & Validate
     train_df = ingest_csv(PROJECT_ROOT / "data" / "train.csv")
+    synthetic_df = ingest_csv(PROJECT_ROOT / "data" / "synthetic_train.csv")
+    train_df = pd.concat([train_df, synthetic_df], ignore_index=True)
     test_df = ingest_csv(PROJECT_ROOT / "data" / "test.csv")
     
     # 2. Preprocess

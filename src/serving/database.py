@@ -47,42 +47,48 @@ def init_db():
             complaint TEXT
         )
     """)
+    
+    # Create support_queries table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS support_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id TEXT,
+            query TEXT,
+            response TEXT
+        )
+    """)
     conn.commit()
     
-    # Ingest existing records from train.csv and test.csv if table is empty
-    cursor.execute("SELECT COUNT(*) FROM customers")
-    if cursor.fetchone()[0] == 0:
-        logger.info("Customers database table is empty. Pre-populating from local CSV files...")
-        
-        for filename in ["train.csv", "test.csv"]:
-            csv_path = DATA_DIR / filename
-            if csv_path.exists():
-                try:
-                    with open(csv_path, mode="r", encoding="utf-8") as f:
-                        reader = csv.DictReader(f)
-                        for row in reader:
-                            cust_id = row.get("customer_id")
-                            if not cust_id:
-                                continue
-                            
-                            age = int(row["age"]) if row.get("age") else 0
-                            edu = row.get("education", "")
-                            job = row.get("job", "")
-                            bal = float(row["balance"]) if row.get("balance") else 0.0
-                            dur = int(row["duration"]) if row.get("duration") else 0
-                            comp = row.get("complaint", "")
-                            
-                            cursor.execute("""
-                                INSERT OR IGNORE INTO customers (customer_id, age, education, job, balance, duration, complaint)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (cust_id, age, edu, job, bal, dur, comp))
-                    conn.commit()
-                    logger.info(f"Loaded records from {filename} into SQLite.")
-                except Exception as e:
-                    logger.error(f"Error pre-populating database from {filename}: {e}")
-    else:
-        logger.info("SQLite database table already populated.")
-        
+    # Ingest existing records 
+    logger.info("Pre-populating from local CSV files...")
+    
+    for filename in ["train.csv", "test.csv", "synthetic_train.csv"]:
+        csv_path = DATA_DIR / filename
+        if csv_path.exists():
+            try:
+                with open(csv_path, mode="r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        cust_id = row.get("customer_id")
+                        if not cust_id:
+                            continue
+                        
+                        age = int(row["age"]) if row.get("age") else 0
+                        edu = row.get("education", "")
+                        job = row.get("job", "")
+                        bal = float(row["balance"]) if row.get("balance") else 0.0
+                        dur = int(row["duration"]) if row.get("duration") else 0
+                        comp = row.get("complaint", "")
+                        
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO customers (customer_id, age, education, job, balance, duration, complaint)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (cust_id, age, edu, job, bal, dur, comp))
+                conn.commit()
+                logger.info(f"Loaded records from {filename} into SQLite.")
+            except Exception as e:
+                logger.error(f"Error pre-populating database from {filename}: {e}")
+                
     conn.close()
 
 def get_customer_details(customer_id: str) -> Optional[Dict[str, Any]]:
@@ -95,6 +101,10 @@ def get_customer_details(customer_id: str) -> Optional[Dict[str, Any]]:
             cached_data = redis_client.get(cache_key)
             if cached_data:
                 logger.info(f"Cache HIT for customer key: '{cache_key}'")
+                if isinstance(cached_data, bytes):
+                    cached_data = cached_data.decode("utf-8")
+                elif not isinstance(cached_data, str):
+                    cached_data = str(cached_data)
                 parsed = json.loads(cached_data)
                 parsed["cache_status"] = "HIT"
                 return parsed
@@ -148,3 +158,27 @@ def get_customer_details(customer_id: str) -> Optional[Dict[str, Any]]:
         
     logger.info(f"Customer '{customer_id}' not found in SQLite DB.")
     return None
+
+def add_support_query_response(customer_id: str, query: str, response: str):
+    """Adds a new query and support response to the database."""
+    conn = sqlite3.connect(str(SQLITE_DB_PATH))
+    cursor = conn.cursor()
+    
+    # Ensure table exists in case init_db wasn't run
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS support_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id TEXT,
+            query TEXT,
+            response TEXT
+        )
+    """)
+    
+    cursor.execute("""
+        INSERT INTO support_queries (customer_id, query, response)
+        VALUES (?, ?, ?)
+    """, (customer_id, query, response))
+    
+    conn.commit()
+    conn.close()
+    logger.info(f"Added support query and response for customer {customer_id}")

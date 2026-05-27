@@ -25,9 +25,14 @@ dependencies = [
     "sentence-transformers>=2.7.0",
     "tokenizers>=0.22.0",
     "uvicorn[standard]>=0.47.0",
+    "redis>=7.4.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --tb=short"
+
+[tool.pyright]
+include = ["."]
+extraPaths = ["."]

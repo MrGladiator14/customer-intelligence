@@ -64,7 +64,8 @@ def retrieve_complaints(
                 "product": meta.get("product", ""),
                 "company": meta.get("company", ""),
                 "date": meta.get("date", ""),
-                "issue": meta.get("issue", "")
+                "issue": meta.get("issue", ""),
+                "support_response": meta.get("support_response", "")
             }
             
             # Apply optional filters in Python (case-insensitive keyword matching on text)

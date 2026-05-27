@@ -55,8 +55,7 @@ CustomerSchema = pa.DataFrameSchema(
         ),
         "complaint": pa.Column(
             str,
-            checks=pa.Check(lambda s: s.str.strip().str.len() > 0), # Rule 5: non-empty complaint strings
-            nullable=False,
+            nullable=True,
             coerce=True,
             description="Customer complaint text."
         ),
@@ -68,7 +67,7 @@ CustomerSchema = pa.DataFrameSchema(
             description="Conversion status (1 if converted, 0 otherwise)."
         )
     },
-    strict=True,
+    strict=False,
     coerce=True
 )
 

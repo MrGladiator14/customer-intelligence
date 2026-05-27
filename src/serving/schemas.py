@@ -11,7 +11,7 @@ class CustomerFeatures(BaseModel):
     job: str = Field(..., description="Job sector", examples=["management"])
     balance: float = Field(..., description="Current account balance", examples=[2000.50])
     duration: int = Field(..., ge=0, description="Last contact duration in seconds", examples=[220])
-    complaint: str = Field(..., description="Customer complaint text", examples=["Unexpected transaction fees charged."])
+    complaint: Optional[str] = Field(None, description="Customer complaint text (Optional for ML)", examples=["Unexpected transaction fees charged."])
 
 class PredictionResponse(BaseModel):
     customer_id: str
@@ -62,7 +62,7 @@ class AskResponse(BaseModel):
 # ── Unified Combined Schema ─────────────────────────────────────────────────
 class CustomerIntelRequest(BaseModel):
     customer: CustomerFeatures
-    question: str = Field(..., min_length=3, description="Query for aggregate complaint insights", examples=["What was their specific complaint about card lockages?"])
+    question: Optional[str] = Field(None, description="Query for aggregate complaint insights", examples=["What was their specific complaint about card lockages?"])
     
     # Optional filters (Page 4 of PDF)
     product: Optional[str] = Field(None, description="Optional product filter")
@@ -73,11 +73,13 @@ class CustomerIntelRequest(BaseModel):
 class CustomerIntelResponse(BaseModel):
     customer_id: str
     
-    # Mandated flat API contract fields (Optional for backward-compatible mock safety)
     conversion_band: Optional[str] = Field(None, description="Conversion band for the customer, e.g. High, Medium, Low")
     top_complaint_themes: Optional[str] = Field(None, description="Synthesized complaint themes for this segment")
     cited_ids: Optional[List[str]] = Field(None, description="Evidence document IDs referenced in theme compilation")
-    
-    # Legacies kept for backwards compatibility with existing UI/tests
-    conversion_info: PredictionResponse
-    complaint_insights: AskResponse
+    suggested_response: Optional[str] = Field(None, description="A suggested response to the user's complaint based on retrieved context")
+    similar_queries: Optional[List[Dict[str, str]]] = Field(None, description="List of similar user queries and their support responses")
+
+class SubmitSupportResponseRequest(BaseModel):
+    customer_id: str = Field(..., description="Customer ID")
+    query: str = Field(..., description="The complaint or query")
+    response: str = Field(..., description="The final edited response to the customer")

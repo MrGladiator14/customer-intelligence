@@ -9,7 +9,7 @@ import mlflow
 import chromadb
 from src.config import RAG_SIMILARITY_THRESHOLD
 from src.rag.retrieve import retrieve_complaints, evaluate_relevance
-from src.rag.answer import generate_answer
+from src.rag.answer import generate_answer, rewrite_query
 from src.rag.build_index import get_embedding_engine
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -23,6 +23,7 @@ class AgentState(TypedDict):
     date: Optional[str]
     issue: Optional[str]
     customer_id: Optional[str]
+    rewritten_question: Optional[str]
     documents: List[Dict[str, Any]]
     relevance_score: float
     response: str
@@ -79,6 +80,34 @@ def node_refuse(state: AgentState) -> Dict[str, Any]:
         "nodes_visited": state.get("nodes_visited", []) + ["refuse"]
     }
 
+@mlflow.trace(span_type="TOOL")
+def node_rewrite_query(state: AgentState) -> Dict[str, Any]:
+    """Node that rewrites the query for better retrieval."""
+    logger.info("Node [Rewrite Query]: Rewriting question...")
+    new_question = rewrite_query(state["question"])
+    return {
+        "rewritten_question": new_question,
+        "nodes_visited": state.get("nodes_visited", []) + ["rewrite_query"]
+    }
+
+@mlflow.trace(span_type="RETRIEVER")
+def node_re_retrieve(state: AgentState) -> Dict[str, Any]:
+    """Node that re-retrieves documents using the rewritten query."""
+    query = state.get("rewritten_question") or state["question"]
+    logger.info(f"Node [Re-Retrieve]: Querying ChromaDB for rewritten query '{query}'")
+    docs = retrieve_complaints(
+        query=query,
+        product=state.get("product"),
+        company=state.get("company"),
+        date=state.get("date"),
+        issue=state.get("issue"),
+        customer_id=state.get("customer_id")
+    )
+    return {
+        "documents": docs,
+        "nodes_visited": state.get("nodes_visited", []) + ["re_retrieve"]
+    }
+
 @mlflow.trace(span_type="LLM")
 def node_generate(state: AgentState) -> Dict[str, Any]:
     """Node that generates a response strictly citing retrieved source documents."""
@@ -100,6 +129,8 @@ def get_rag_agent_graph():
     workflow.add_node("retrieve", node_retrieve)
     workflow.add_node("evaluate_relevance", node_evaluate_relevance)
     workflow.add_node("refuse", node_refuse)
+    workflow.add_node("rewrite_query", node_rewrite_query)
+    workflow.add_node("re_retrieve", node_re_retrieve)
     workflow.add_node("generate", node_generate)
     
     # Set Entry Point
@@ -114,10 +145,12 @@ def get_rag_agent_graph():
         route_relevance,
         {
             "generate": "generate",
-            "refuse": "refuse"
+            "refuse": "rewrite_query"
         }
     )
     
+    workflow.add_edge("rewrite_query", "re_retrieve")
+    workflow.add_edge("re_retrieve", "generate")
     workflow.add_edge("generate", END)
     workflow.add_edge("refuse", END)
     
@@ -150,6 +183,7 @@ def run_rag_agent(
         "date": date,
         "issue": issue,
         "customer_id": customer_id,
+        "rewritten_question": None,
         "documents": [],
         "relevance_score": 0.0,
         "response": "",

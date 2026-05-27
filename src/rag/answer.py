@@ -66,10 +66,53 @@ def call_nvidia_llama(prompt: str) -> str:
             return "Refused: Evidence insufficient to ground an answer."
             
         response = llm.invoke(prompt)
-        return response.content.strip()
+        content = response.content
+        if isinstance(content, list):
+            content = " ".join([c.get("text", "") if isinstance(c, dict) else str(c) for c in content])
+        return content.strip()
     except Exception as e:
         logger.error(f"Error calling NVIDIA Llama: {e}. Falling back to mock generator.")
         return "Refused: Evidence insufficient to ground an answer."
+
+def rewrite_query(question: str) -> str:
+    """Rewrites the query to optimize it for vector search retrieval."""
+    logger.info("Rewriting query for better retrieval...")
+    
+    if USE_MOCK_LLM or not NVIDIA_API_KEY:
+        # Mock logic: just strip some common stop words and return
+        stopwords = ["what", "is", "the", "a", "an", "tell", "me", "about", "how", "why", "did", "do", "does"]
+        words = question.split()
+        refined_words = [w for w in words if w.lower() not in stopwords]
+        refined_query = " ".join(refined_words)
+        if not refined_query.strip():
+            refined_query = question
+        logger.info(f"Mock rewritten query: {refined_query}")
+        return refined_query
+
+    prompt = f"""You are a helpful customer intelligence assistant for Meridian Bank.
+Your task is to rewrite the User Question to be optimal for a semantic vector search in a customer complaint database.
+Extract the core intent, keywords, and entities. Remove conversational filler like 'what is' or 'tell me about'.
+Do NOT add any new information. Just output the rewritten query string, nothing else.
+
+User Question: {question}
+
+Rewritten Query:"""
+
+    try:
+        llm = _get_llm_client()
+        if llm is None:
+            return question
+            
+        response = llm.invoke(prompt)
+        content = response.content
+        if isinstance(content, list):
+            content = " ".join([c.get("text", "") if isinstance(c, dict) else str(c) for c in content])
+        refined = content.strip()
+        logger.info(f"LLM rewritten query: {refined}")
+        return refined
+    except Exception as e:
+        logger.error(f"Error rewriting query with LLM: {e}")
+        return question
 
 def generate_answer(question: str, docs: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generates an answer using NVIDIA Llama 70B, strictly grounded in retrieved docs."""
@@ -88,8 +131,8 @@ def generate_answer(question: str, docs: List[Dict[str, Any]]) -> Dict[str, Any]
 Your task is to answer the User Question using ONLY the provided Customer Complaint Context below.
 
 Guidelines:
-1. Answer the question accurately and professionally.
-2. If the context does not contain enough information to ground a complete answer, you MUST reply exactly with: "Refused: Evidence insufficient to ground an answer."
+1. Answer the question accurately and professionally based on the provided context.
+2. If the context does not contain the exact answer, do NOT refuse. Instead, explicitly state what information is missing, and then provide a helpful summary of the related information that IS present in the context.
 3. Do not make up facts or use general knowledge. Answer strictly from the provided documents.
 4. You MUST cite the source documents you use at the end of the sentence or paragraph, e.g. [Doc-101], [Doc-102].
 
@@ -102,11 +145,7 @@ Helpful, Grounded Answer:"""
 
     response = call_nvidia_llama(prompt)
     
-    # Refusal safety check
-    if "Refused: Evidence insufficient to ground an answer" in response:
-        citations = []
-        
     return {
         "response": response,
-        "citations": list(set(citations)) if "Refused:" not in response else []
+        "citations": list(set(citations))
     }

@@ -200,10 +200,6 @@
                 <label for="duration">Last Contact Duration (seconds)</label>
                 <input type="number" id="duration" name="duration" min="0" required>
             </div>
-            <div class="form-group">
-                <label for="complaint">Customer Complaint</label>
-                <textarea id="complaint" name="complaint" rows="3" placeholder="Unexpected transaction fees charged." required></textarea>
-            </div>
             <button type="submit">Get Prediction</button>
         </form>
         <div id="predictResult" class="result"></div>
@@ -269,10 +265,6 @@
                 <label for="intelComplaint">Customer Complaint</label>
                 <textarea id="intelComplaint" name="intelComplaint" rows="3" placeholder="Unexpected transaction fees charged." required></textarea>
             </div>
-            <div class="form-group">
-                <label for="intelQuestion">Question for Complaint Insights</label>
-                <textarea id="intelQuestion" name="intelQuestion" rows="3" placeholder="What was their specific complaint about card lockages?" required></textarea>
-            </div>
             <button type="submit">Get Customer Intelligence</button>
         </form>
         <div id="intelResult" class="result"></div>
@@ -332,8 +324,7 @@
                     education: formData.get('education'),
                     job: formData.get('job'),
                     balance: parseFloat(formData.get('balance')),
-                    duration: parseInt(formData.get('duration')),
-                    complaint: formData.get('complaint')
+                    duration: parseInt(formData.get('duration'))
                 };
                 
                 const response = await fetch(`${API_BASE_URL}/predict`, {
@@ -458,8 +449,7 @@
                         balance: parseFloat(formData.get('intelBalance')),
                         duration: parseInt(formData.get('intelDuration')),
                         complaint: formData.get('intelComplaint')
-                    },
-                    question: formData.get('intelQuestion')
+                    }
                 };
                 
                 const response = await fetch(`${API_BASE_URL}/customer-intel`, {
@@ -476,8 +466,61 @@
                 }
                 
                 const result = await response.json();
-                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                
+                let html = `<h3>Intelligence Results</h3>`;
+                html += `<p><strong>Customer ID:</strong> ${result.customer_id}</p>`;
+                html += `<p><strong>Conversion Band:</strong> ${result.conversion_band}</p>`;
+                html += `<p><strong>Themes:</strong> ${result.top_complaint_themes}</p>`;
+                
+                if (result.suggested_response) {
+                    html += `<div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ccc; border-radius: 5px;">`;
+                    html += `<h4>Suggested Support Response</h4>`;
+                    html += `<p style="font-size: 14px; color: #666; margin-bottom: 10px;">Review and edit the suggested response below before sending it to the customer.</p>`;
+                    html += `<textarea id="editedResponse" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">${result.suggested_response}</textarea>`;
+                    html += `<button type="button" id="sendResponseBtn" style="background: #27ae60;">Send to Customer</button>`;
+                    html += `<span id="sendResponseStatus" style="margin-left: 10px; font-weight: bold; font-size: 14px;"></span>`;
+                    html += `</div>`;
+                } else {
+                    html += `<hr style="margin: 15px 0;"><pre style="font-size: 12px; color: #555;">${JSON.stringify(result, null, 2)}</pre>`;
+                }
+                
+                resultDiv.innerHTML = html;
                 resultDiv.classList.add('success');
+
+                // Attach event listener to the send button if it exists
+                const sendBtn = document.getElementById('sendResponseBtn');
+                if (sendBtn) {
+                    sendBtn.addEventListener('click', async () => {
+                        const editedText = document.getElementById('editedResponse').value;
+                        const statusSpan = document.getElementById('sendResponseStatus');
+                        statusSpan.style.color = '#333';
+                        statusSpan.textContent = 'Sending...';
+                        
+                        try {
+                            const sendRes = await fetch(`${API_BASE_URL}/submit-support-response`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    customer_id: result.customer_id,
+                                    query: formData.get('intelComplaint'),
+                                    response: editedText
+                                })
+                            });
+                            
+                            if (!sendRes.ok) throw new Error('Failed to submit response');
+                            
+                            statusSpan.style.color = '#27ae60';
+                            statusSpan.textContent = 'Response sent and logged for training!';
+                            sendBtn.disabled = true;
+                            sendBtn.style.opacity = '0.5';
+                            document.getElementById('editedResponse').disabled = true;
+                        } catch (err) {
+                            statusSpan.style.color = '#e74c3c';
+                            statusSpan.textContent = 'Error: ' + err.message;
+                        }
+                    });
+                }
+
             } catch (error) {
                 resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
@@ -526,8 +569,7 @@
                 'education': 'education',
                 'job': 'job',
                 'balance': 'balance',
-                'duration': 'duration',
-                'complaint': 'complaint'
+                'duration': 'duration'
             };
             performAutofill(custId, fields, 'predictAutofillStatus');
         });

@@ -25,7 +25,8 @@ from src.serving.schemas import (
     AskResponse,
     CustomerIntelRequest,
     CustomerIntelResponse,
-    BatchScoreResponse
+    BatchScoreResponse,
+    SubmitSupportResponseRequest
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -444,9 +445,12 @@ def get_customer_intel(request: CustomerIntelRequest):
     # 2. Segment-level RAG Synthesis
     try:
         # Construct retrieval query combining question and user complaint
-        retrieval_query = request.question
+        query_parts = []
+        if request.question:
+            query_parts.append(request.question)
         if request.customer.complaint:
-            retrieval_query = f"{request.question} {request.customer.complaint}"
+            query_parts.append(request.customer.complaint)
+        retrieval_query = " ".join(query_parts) if query_parts else "customer support query"
 
         # Retrieve complaints matching filters
         from src.rag.retrieve import retrieve_complaints
@@ -459,6 +463,44 @@ def get_customer_intel(request: CustomerIntelRequest):
             customer_id=request.customer.customer_id,
             limit=5
         )
+        
+        # Retrieve similar complaints from across the knowledge base for support suggestions
+        similar_complaints = retrieve_complaints(
+            query=request.customer.complaint if request.customer.complaint else request.question,
+            product=request.product,
+            company=request.company,
+            date=request.date,
+            issue=request.issue,
+            limit=5
+        )
+        
+        seen_queries = set()
+        similar_queries = []
+        for doc in similar_complaints:
+            q_text = doc["text"]
+            if q_text not in seen_queries:
+                seen_queries.add(q_text)
+                similar_queries.append({
+                    "query": q_text,
+                    "response": doc.get("support_response", "")
+                })
+
+        # Generate suggested response based on retrieved similar complaints
+        if similar_complaints and request.customer.complaint:
+            context_str = "\n".join([f"Similar Complaint: {doc['text']}\nResponse Given: {doc.get('support_response', '')}" for doc in similar_complaints])
+            prompt2 = f"""You are a helpful customer support agent.
+Based on the following similar complaints and their responses from our knowledge base:
+{context_str}
+
+Draft a professional, helpful, and concise suggested response to the user's current complaint: "{request.customer.complaint}"
+CRITICAL INSTRUCTION: Output ONLY the exact drafted response text that will be sent to the customer. Do not include any introductory text (e.g. "Here's a response"), preamble, conversational filler, or explanations of your process.
+Suggested Response:"""
+            from src.rag.answer import call_nvidia_llama
+            suggested_response = call_nvidia_llama(prompt2)
+        else:
+            suggested_response = "We have received your query and our team will get back to you shortly."
+            
+
         
         citations = [c["source_id"] for c in complaints if c["source_id"] != "Doc-Unknown"]
         
@@ -478,34 +520,9 @@ Summary of themes (1-2 paragraphs, professionally citing the Document IDs like [
             from src.rag.answer import call_nvidia_llama
             top_themes = call_nvidia_llama(prompt)
             
-        # Standard legacy agent call for backward compatibility in response
-        agent_out = run_rag_agent(
-            question=retrieval_query,
-            product=request.product,
-            company=request.company,
-            date=request.date,
-            issue=request.issue,
-            customer_id=request.customer.customer_id
-        )
-        
-        score = agent_out.get("relevance_score", 0.0)
-        sufficient = score >= RAG_SIMILARITY_THRESHOLD
-        sufficiency_note = (
-            f"Sufficiency Check: Retrieved evidence matches segment with similarity {score:.4f}"
-            if sufficient else "Sufficiency Check: Weak matching evidence."
-        )
-        
-        complaint_insights = AskResponse(
-            question=request.question,
-            response=agent_out["response"],
-            citations=agent_out["citations"],
-            latency_ms=round((time.time() - start) * 1000, 2),
-            relevance_score=score,
-            answer=agent_out["response"],
-            retrieved_evidence_ids=agent_out["citations"],
-            evidence_sufficiency_note=sufficiency_note,
-            prompt_version="v2.0"
-        )
+        from src.rag.retrieve import evaluate_relevance
+        score = evaluate_relevance(complaints)
+
     except Exception as e:
         track_metric(endpoint="customer-intel", latency_ms=(time.time() - start) * 1000, error=True)
         raise HTTPException(
@@ -527,8 +544,8 @@ Summary of themes (1-2 paragraphs, professionally citing the Document IDs like [
         conversion_band=prediction_info.probability_band,
         top_complaint_themes=top_themes,
         cited_ids=list(set(citations)),
-        conversion_info=prediction_info,
-        complaint_insights=complaint_insights
+        suggested_response=suggested_response,
+        similar_queries=similar_queries
     )
 
 @api_router.get("/customer-details/{customer_id}", tags=["Unified Plane"])
@@ -542,6 +559,20 @@ def get_customer_details_endpoint(customer_id: str):
             detail=f"Customer details for ID '{customer_id}' not found."
         )
     return details
+
+@api_router.post("/submit-support-response", tags=["Unified Plane"])
+def submit_support_response(request: SubmitSupportResponseRequest):
+    """Stores the finalized, edited response sent by the support team so it can be added to the training dataset."""
+    from src.serving.database import add_support_query_response
+    try:
+        add_support_query_response(request.customer_id, request.query, request.response)
+        return {"status": "success", "message": "Support response logged for training."}
+    except Exception as e:
+        logger.error(f"Failed to log support response: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to log support response: {str(e)}"
+        )
 
 @api_router.get("/metrics", tags=["Telemetry"])
 def get_metrics(time_window: Optional[int] = None):

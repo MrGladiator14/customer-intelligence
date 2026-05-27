@@ -54,6 +54,8 @@ def build_chroma_index():
     
     # 1. Ingest train dataset containing complaints
     train_df = ingest_csv(PROJECT_ROOT / "data" / "train.csv")
+    synthetic_df = ingest_csv(PROJECT_ROOT / "data" / "synthetic_train.csv")
+    train_df = pd.concat([train_df, synthetic_df], ignore_index=True)
     
     # Filter rows with valid complaints
     complaint_data = train_df[train_df["complaint"].notna() & (train_df["complaint"].str.strip() != "")]
@@ -95,15 +97,19 @@ def build_chroma_index():
         # Clean text of the document marker for vector storage if desired,
         # but leaving it makes it clear. We'll store the clean text or the whole text.
         documents.append(text)
+        support_response = row.get("support_response")
+        support_response_str = str(support_response) if pd.notna(support_response) else ""
+
         metadatas.append({
             "customer_id": cust_id,
             "source_id": doc_id,
             "age": int(row["age"]),
             "job": str(row["job"]),
             "education": str(row["education"]),
-            "balance": float(row["balance"])
+            "balance": float(row["balance"]),
+            "support_response": support_response_str
         })
-        ids.append(cust_id)
+        ids.append(f"{cust_id}_{idx}")
     
     # Compute embeddings
     logger.info("Computing embeddings for complaints...")

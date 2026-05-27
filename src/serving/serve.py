@@ -1017,3 +1017,19 @@ def download_metrics_root():
 @app.get("/metrics", tags=["Backwards Compatibility"])
 def metrics_root(time_window: Optional[int] = None):
     return get_metrics(time_window)
+
+@app.post("/calculate-drift", tags=["Backwards Compatibility"])
+async def calculate_drift_root(file: UploadFile = File(...)):
+    return await calculate_drift(file)
+
+@app.get("/download-merged-scored", tags=["Backwards Compatibility"])
+def download_merged_scored_root():
+    return download_merged_scored()
+
+@app.get("/mock-users", tags=["Backwards Compatibility"])
+def get_mock_users_root():
+    return get_mock_users()
+
+@app.post("/submit-support-response", tags=["Backwards Compatibility"])
+def submit_support_response_root(request: SubmitSupportResponseRequest):
+    return submit_support_response(request)

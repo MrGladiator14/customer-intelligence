@@ -1,1 +1,5 @@
 {"timestamp": 1779905534.8834445, "endpoint": "aggregate", "latency_ms": 9754.268837355101, "error": false, "prediction_band": "Medium", "RAG_hit": true, "RAG_refusal": true, "RAG_relevance": 0.5973494996627172}
+{"timestamp": 1779917901.6763198, "endpoint": "predict", "latency_ms": 2251.9192695617676, "error": false, "prediction_band": "High", "RAG_hit": null, "RAG_refusal": null, "RAG_relevance": null}
+{"timestamp": 1779917901.7663915, "endpoint": "batch-score", "latency_ms": 55.7861328125, "error": false, "prediction_band": "Medium", "RAG_hit": null, "RAG_refusal": null, "RAG_relevance": null}
+{"timestamp": 1779917901.7789419, "endpoint": "ask-complaints", "latency_ms": 12.5, "error": false, "prediction_band": null, "RAG_hit": true, "RAG_refusal": false, "RAG_relevance": 0.85}
+{"timestamp": 1779917959.2619083, "endpoint": "customer-intel", "latency_ms": 57473.17099571228, "error": false, "prediction_band": "Medium", "RAG_hit": false, "RAG_refusal": null, "RAG_relevance": 0.0}

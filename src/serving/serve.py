@@ -13,7 +13,7 @@ import mlflow
 import pandas as pd
 from fastapi import APIRouter, FastAPI, File, UploadFile, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from src.config import PROJECT_ROOT, MODEL_DIR, DATA_DIR, MLFLOW_TRACKING_URI, MLFLOW_INFERENCE_EXPERIMENT_NAME, RAG_SIMILARITY_THRESHOLD
 from src.data_pipeline.validate import validate_dataframe
@@ -264,7 +264,7 @@ def predict_single(features: CustomerFeatures):
     results = perform_inference(model, validated_df, model_name)
     latency = (time.time() - start) * 1000
     
-    _log_inference(model_name, 1, int(results[0].conversion_prediction), results[0].conversion_probability, latency)
+    _log_inference(model_name, 1, results[0].conversion_prediction, results[0].conversion_probability, latency)
     track_metric(
         endpoint="predict",
         latency_ms=latency,
@@ -284,7 +284,7 @@ async def batch_score(
     
     # 1. Parse CSV File Upload
     if file is not None:
-        if not file.filename.endswith(".csv"):
+        if file.filename is None or not file.filename.endswith(".csv"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid file format. Please upload a CSV file."
@@ -373,6 +373,92 @@ async def batch_score(
         predictions=results
     )
 
+@api_router.get("/download-merged-scored", tags=["ML Modeling"])
+def download_merged_scored():
+    """Merges all CSVs in data/scored, returns the merged CSV, and deletes the original files."""
+    scored_dir = DATA_DIR / "scored"
+    if not scored_dir.exists():
+        raise HTTPException(status_code=404, detail="No scored files found.")
+        
+    csv_files = list(scored_dir.glob("*.csv"))
+    if not csv_files:
+        raise HTTPException(status_code=404, detail="No scored files found.")
+    
+    try:
+        df_list = [pd.read_csv(f) for f in csv_files]
+        merged_df = pd.concat(df_list, ignore_index=True)
+        merged_csv_content = merged_df.to_csv(index=False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to merge CSV files: {str(e)}")
+
+    for f in csv_files:
+        try:
+            f.unlink()
+        except Exception as e:
+            logger.error(f"Failed to delete {f}: {e}")
+
+    return Response(
+        content=merged_csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=merged_scored_{int(time.time())}.csv"}
+    )
+
+@api_router.post("/calculate-drift", tags=["ML Modeling"])
+async def calculate_drift(file: UploadFile = File(...)):
+    """Calculates covariate shift (drift) for an uploaded dataset against the training reference."""
+    import sys
+    from src.config import PROJECT_ROOT
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.append(str(PROJECT_ROOT))
+        
+    try:
+        from monitoring.ml_drift import calculate_psi, calculate_ks_test
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Could not import drift detection methods.")
+
+    train_path = DATA_DIR / "synthetic_train.csv"
+    if not train_path.exists():
+        raise HTTPException(status_code=500, detail="Reference dataset synthetic_train.csv not found.")
+        
+    ref_df = pd.read_csv(train_path)
+    
+    try:
+        contents = await file.read()
+        prod_df = pd.read_csv(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse CSV file: {str(e)}")
+
+    features = ["age", "balance", "duration"]
+    drift_results = {}
+    
+    for feat in features:
+        if feat not in prod_df.columns:
+            continue
+            
+        import numpy as np
+        ref_arr = np.asarray(ref_df[feat].dropna(), dtype=float)
+        prod_arr = np.asarray(prod_df[feat].dropna(), dtype=float)
+        
+        psi = calculate_psi(ref_arr, prod_arr)
+        p_val = calculate_ks_test(ref_arr, prod_arr)
+        
+        if psi > 0.25:
+            status = "SEVERE DRIFT"
+        elif psi > 0.1:
+            status = "MODERATE DRIFT"
+        else:
+            status = "STABLE"
+            
+        drift_results[feat] = {
+            "psi": round(psi, 4),
+            "ks_p_value": p_val,
+            "status": status,
+            "ref_mean": round(float(np.mean(ref_arr)), 2) if len(ref_arr) > 0 else 0.0,
+            "prod_mean": round(float(np.mean(prod_arr)), 2) if len(prod_arr) > 0 else 0.0
+        }
+        
+    return {"status": "success", "drift_analysis": drift_results}
+
 @api_router.post("/ask-complaints", response_model=AskResponse, tags=["LLM/RAG Lane"])
 def ask_complaints(request: AskRequest):
     """Executes the stateful LangGraph agent over indexed complaints with optional filters."""
@@ -380,10 +466,10 @@ def ask_complaints(request: AskRequest):
     try:
         agent_out = run_rag_agent(
             question=request.question,
-            product=request.product,
-            company=request.company,
-            date=request.date,
-            issue=request.issue
+            product=request.product or "",
+            company=request.company or "",
+            date=request.date or "",
+            issue=request.issue or ""
         )
         
         latency = (time.time() - start) * 1000
@@ -463,21 +549,21 @@ def get_customer_intel(request: CustomerIntelRequest):
         from src.rag.retrieve import retrieve_complaints
         complaints = retrieve_complaints(
             query=retrieval_query,
-            product=request.product,
-            company=request.company,
-            date=request.date,
-            issue=request.issue,
+            product=request.product or "",
+            company=request.company or "",
+            date=request.date or "",
+            issue=request.issue or "",
             customer_id=request.customer.customer_id,
             limit=5
         )
         
         # Retrieve similar complaints from across the knowledge base for support suggestions
         similar_complaints = retrieve_complaints(
-            query=request.customer.complaint if request.customer.complaint else request.question,
-            product=request.product,
-            company=request.company,
-            date=request.date,
-            issue=request.issue,
+            query=request.customer.complaint if request.customer.complaint else (request.question or ""),
+            product=request.product or "",
+            company=request.company or "",
+            date=request.date or "",
+            issue=request.issue or "",
             limit=5
         )
         
@@ -602,6 +688,58 @@ def submit_support_response(request: SubmitSupportResponseRequest):
             detail=f"Failed to log support response: {str(e)}"
         )
 
+@api_router.get("/download-metrics", tags=["Telemetry"])
+def download_metrics():
+    """Downloads the telemetry metrics log file."""
+    metrics_file = DATA_DIR / "metrics_log.jsonl"
+    if not metrics_file.exists():
+        raise HTTPException(status_code=404, detail="Metrics log file not found.")
+    
+    try:
+        content = metrics_file.read_text(encoding="utf-8")
+        
+        if METRICS_LOG:
+            n = len(METRICS_LOG)
+            avg_latency = sum(log["latency_ms"] for log in METRICS_LOG) / n
+            
+            bands = [log.get("prediction_band") for log in METRICS_LOG if log.get("prediction_band")]
+            most_common_band = None
+            if bands:
+                import collections
+                most_common_band = collections.Counter(bands).most_common(1)[0][0]
+                
+            rag_logs = [log for log in METRICS_LOG if log.get("RAG_relevance") is not None]
+            n_rag = len(rag_logs)
+            avg_relevance = sum(log["RAG_relevance"] for log in rag_logs) / n_rag if n_rag else None
+            
+            avg_entry = {
+                "timestamp": time.time(),
+                "endpoint": "aggregate",
+                "latency_ms": avg_latency,
+                "error": any(log.get("error") for log in METRICS_LOG),
+                "prediction_band": most_common_band,
+                "RAG_hit": any(log.get("RAG_hit") for log in rag_logs),
+                "RAG_refusal": any(log.get("RAG_refusal") for log in rag_logs),
+                "RAG_relevance": avg_relevance
+            }
+            
+            METRICS_LOG.clear()
+            METRICS_LOG.append(avg_entry)
+            
+            import json
+            metrics_file.write_text(json.dumps(avg_entry) + "\n", encoding="utf-8")
+        else:
+            metrics_file.unlink(missing_ok=True)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read metrics file: {str(e)}")
+
+    return Response(
+        content=content,
+        media_type="application/jsonl",
+        headers={"Content-Disposition": f"attachment; filename=metrics_log_{int(time.time())}.jsonl"}
+    )
+
 @api_router.get("/metrics", tags=["Telemetry"])
 def get_metrics(time_window: Optional[int] = None):
     """Returns analytics telemetry metrics filtered by an optional time window."""
@@ -684,9 +822,15 @@ async def serve_dashboard():
                 </h1>
                 <p class="text-slate-400 mt-1">Real-time predictive scoring and complaints RAG monitoring lane.</p>
             </div>
-            <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
-                <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span class="text-sm font-semibold text-slate-300">SYSTEM HEALTHY</span>
+            <div class="flex items-center gap-4">
+                <a href="/api/download-metrics" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors shadow-lg border border-indigo-500/50 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download Logs
+                </a>
+                <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                    <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-semibold text-slate-300">SYSTEM HEALTHY</span>
+                </div>
             </div>
         </div>
 
@@ -865,6 +1009,10 @@ def customer_intel_root(request: CustomerIntelRequest):
 @app.get("/customer-details/{customer_id}", tags=["Backwards Compatibility"])
 def customer_details_root(customer_id: str):
     return get_customer_details_endpoint(customer_id)
+
+@app.get("/download-metrics", tags=["Backwards Compatibility"])
+def download_metrics_root():
+    return download_metrics()
 
 @app.get("/metrics", tags=["Backwards Compatibility"])
 def metrics_root(time_window: Optional[int] = None):

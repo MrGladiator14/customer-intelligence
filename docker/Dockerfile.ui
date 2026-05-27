@@ -3,7 +3,7 @@ FROM nginx:alpine
 RUN apk add --no-cache gettext
 
 COPY docker/nginx.conf.template /etc/nginx/nginx.conf.template
-COPY ui/index.html /usr/share/nginx/html/index.html
+COPY ui/*.html /usr/share/nginx/html/
 
 EXPOSE 80
 

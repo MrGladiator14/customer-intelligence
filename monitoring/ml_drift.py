@@ -70,7 +70,7 @@ def generate_drift_report():
     logger.info("Initializing ML Drift Detector...")
     
     # Load reference data
-    train_path = PROJECT_ROOT / "data" / "train.csv"
+    train_path = PROJECT_ROOT / "data" / "synthetic_train.csv"
     if not train_path.exists():
         logger.error(f"Reference dataset not found at {train_path}. Run generate dummy data first.")
         return
@@ -82,10 +82,10 @@ def generate_drift_report():
     prod_df = ref_df.copy()
     
     # 1. Age shifted higher (older target segment)
-    prod_df["age"] = prod_df["age"] + np.random.randint(5, 15, size=len(prod_df))
+    prod_df["age"] = prod_df["age"].to_numpy(dtype=float) + np.random.randint(5, 15, size=len(prod_df)).astype(float)
     
     # 2. Last contact duration increased significantly (telemarketing shift)
-    prod_df["duration"] = prod_df["duration"] * 2.5 + np.random.randint(10, 50, size=len(prod_df))
+    prod_df["duration"] = prod_df["duration"].to_numpy(dtype=float) * 2.5 + np.random.randint(10, 50, size=len(prod_df)).astype(float)
     
     # 3. Account balance decreased (financial market shift)
     prod_df["balance"] = prod_df["balance"] - 1500.0
@@ -94,8 +94,8 @@ def generate_drift_report():
     drift_results = {}
     
     for feat in features:
-        ref_arr = ref_df[feat].values
-        prod_arr = prod_df[feat].values
+        ref_arr = np.asarray(ref_df[feat], dtype=float)
+        prod_arr = np.asarray(prod_df[feat], dtype=float)
         
         psi = calculate_psi(ref_arr, prod_arr)
         p_val = calculate_ks_test(ref_arr, prod_arr)

@@ -44,7 +44,6 @@ if [[ "$DEPLOY_TARGET" == "all" || "$DEPLOY_TARGET" == "mlflow" ]]; then
         --resource-group "$RESOURCE_GROUP" \
         --name "$MLFLOW_APP" \
         --image "${ACR_SERVER}/mlflow:${IMAGE_TAG}" \
-        --allow-insecure true \
         --set-env-vars \
             MLFLOW_SERVER_CORS_ALLOWED_ORIGINS="*" \
         -o table
@@ -57,7 +56,6 @@ if [[ "$DEPLOY_TARGET" == "all" || "$DEPLOY_TARGET" == "fastapi" ]]; then
         --resource-group "$RESOURCE_GROUP" \
         --name "$FASTAPI_APP" \
         --image "${ACR_SERVER}/fastapi:${IMAGE_TAG}" \
-        --allow-insecure true \
         -o table
 fi
 

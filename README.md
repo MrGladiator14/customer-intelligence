@@ -15,6 +15,10 @@ The platform is deployed and running on Azure Container Apps:
 * **Live Application URL**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/)
 * **MLflow Tracing & Observability Portal**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces)
 
+![Dashboard](./static/dashboard.png)
+
+![MLflow Tracing](./static/mlflow_model&LLM_tracing.png)
+
 ---
 
 ## Demo Video
@@ -140,6 +144,8 @@ graph TB
   2. **F1-Score Degradation**: Champion's F1-Score must not degrade by $> 0.02$ relative to Baseline.
   * If these conditions fail, the pipeline returns exit code `1`, causing CI/CD builds to fail safely.
 
+![Model Drift Monitoring](./static/model_drift.png)
+
 ### 3. Stateful RAG & Out-of-Domain Refusal (`src/rag/`)
 * Integrates `BAAI/bge-small-en-v1.5` embeddings mapping historic support complaints to a local **ChromaDB** index.
 * Uses a stateful **LangGraph** orchestration graph:
@@ -155,6 +161,10 @@ graph TD
 ```
 * **Strict Grounded Generation**: Answers strictly reference original record source identifiers (e.g. `[Doc-101]`).
 * **Zero-Hallucination Guardrails**: High-fidelity out-of-domain evaluation checks test refusal responses on out-of-distribution complaints to ensure a $100\%$ refusal rate.
+
+![Chat Summary](./static/chat_summary.png)
+
+![Chat Suggestion](./static/chat_suggestion.png)
 
 ---
 
@@ -242,7 +252,5 @@ During cloud deployment, the following integration issues were encountered and r
   * *Fix*: Sanitized all outputs with a pipeline string translator (`tr -d '\r'`).
 * **Azure Container App Ingress Host Headers**: Nginx's default client host-propagation broke routing at the ACA ingress level, triggering `404 Not Found` responses.
   * *Fix*: Dynamic replacement was implemented in `nginx.conf.template` to explicitly pass internal ACA host bindings (`proxy_set_header Host ${FASTAPI_HOST}`).
-* **MLflow UI CORS Policies**: MLflow 2.14+ blocks requests proxied from different origins, generating `403 Forbidden` errors.
-  * *Fix*: Added `MLFLOW_SERVER_CORS_ALLOWED_ORIGINS="*"` environment parameters during MLflow Container App initialization.
 * **Envoy SNI/Internal Resolution loops**: Hardcoded DNS resolvers bypassed Azure CoreDNS, preventing internal `.internal.` domain lookup.
   * *Fix*: Excluded the hardcoded Nginx `resolver` block, allowing Nginx to leverage the container's natural OS resolver (`/etc/resolv.conf`) to map back to internal virtual load balancers.

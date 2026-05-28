@@ -55,6 +55,7 @@ CustomerSchema = pa.DataFrameSchema(
         ),
         "complaint": pa.Column(
             str,
+            checks=pa.Check(lambda s: s.str.strip().str.len() > 0, ignore_na=True),
             nullable=True,
             coerce=True,
             description="Customer complaint text."

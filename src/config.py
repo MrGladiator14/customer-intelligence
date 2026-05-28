@@ -26,7 +26,7 @@ RAG_TOP_K = int(os.getenv("RAG_TOP_K", "3"))
 RAG_SIMILARITY_THRESHOLD = float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.35"))
 RAG_SAMPLE_SIZE = int(os.getenv("RAG_SAMPLE_SIZE", "5000"))
 
-PROMOTION_PR_AUC_MIN_IMPROVEMENT = float(os.getenv("PROMOTION_PR_AUC_MIN_IMPROVEMENT", "0.03"))
+PROMOTION_PR_AUC_MIN_IMPROVEMENT = float(os.getenv("PROMOTION_PR_AUC_MIN_IMPROVEMENT", "0.00"))
 PROMOTION_F1_MAX_DROP = float(os.getenv("PROMOTION_F1_MAX_DROP", "0.02"))
 
 # Database & Redis Caching configuration

@@ -105,8 +105,9 @@ def test_endpoint_ask_complaints(mock_run):
     assert json_data["latency_ms"] == 12.5
 
 @patch("src.serving.serve.load_active_champion")
-@patch("src.serving.serve.run_rag_agent")
-def test_endpoint_customer_intel(mock_run, mock_load):
+@patch("src.rag.retrieve.retrieve_complaints")
+@patch("src.rag.answer.call_nvidia_llama")
+def test_endpoint_customer_intel(mock_llm, mock_retrieve, mock_load):
     # Setup mock model
     mock_model = MagicMock()
     mock_model.predict.return_value = [0]
@@ -114,13 +115,10 @@ def test_endpoint_customer_intel(mock_run, mock_load):
     mock_load.return_value = (mock_model, "MockModel.pkl")
     
     # Setup mock RAG
-    mock_run.return_value = {
-        "question": "Why is the app slow?",
-        "response": "App is slow during weekends [Doc-102].",
-        "citations": ["Doc-102"],
-        "latency_ms": 45.2,
-        "relevance_score": 0.65
-    }
+    mock_retrieve.return_value = [
+        {"source_id": "Doc-102", "text": "App is slow.", "similarity": 0.65}
+    ]
+    mock_llm.return_value = "Mocked LLM Response"
     
     payload = {
         "customer": {
@@ -139,5 +137,5 @@ def test_endpoint_customer_intel(mock_run, mock_load):
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["customer_id"] == "CUST505"
-    assert json_data["conversion_info"]["probability_band"] == "Medium"
-    assert json_data["complaint_insights"]["citations"] == ["Doc-102"]
+    assert json_data["conversion_band"] == "Medium"
+    assert json_data["cited_ids"] == ["Doc-102"]

@@ -200,6 +200,8 @@ graph TD
 
 ## Deploying to Azure Container Apps (ACA)
 
+![Azure CI/CD](./static/azure-CICD.png)
+
 Deployment infrastructure provisioning scripts reside in the `deploy/` directory.
 
 ### Initial & Targeted Provisioning

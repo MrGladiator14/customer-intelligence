@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Meridian Intelligence Platform - ML Drift Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0b0f19;
+            color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-8">
+    <div class="max-w-4xl mx-auto bg-slate-900/60 backdrop-blur border border-slate-800 p-8 rounded-3xl shadow-2xl">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-6 mb-6">
+            <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    Covariate Shift & Data Drift Report
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Generated automatically on simulated production shift.</p>
+            </div>
+            <div class="text-right text-xs text-slate-500">
+                <div>Timestamp: 2026-05-28 14:36:45</div>
+                <div>Methodology: Population Stability Index (PSI)</div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-slate-800/40 border border-slate-800/80 p-6 rounded-2xl">
+                <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Features Analyzed</span>
+                <h3 class="text-3xl font-bold mt-2 text-cyan-400">3</h3>
+            </div>
+            <div class="bg-slate-800/40 border border-slate-800/80 p-6 rounded-2xl">
+                <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Drift Alarm Limit</span>
+                <h3 class="text-3xl font-bold mt-2 text-amber-500">&gt;0.25 PSI</h3>
+            </div>
+            <div class="bg-slate-800/40 border border-slate-800/80 p-6 rounded-2xl">
+                <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Overall Status</span>
+                <h3 class="text-3xl font-bold mt-2 text-rose-500">🚨 ACTION REQUIRED</h3>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-4 text-slate-200">Feature Statistics Breakdown</h3>
+        <div class="overflow-hidden border border-slate-800 rounded-2xl bg-slate-900/30">
+            <table class="min-w-full divide-y divide-slate-850 text-left text-sm">
+                <thead class="bg-slate-800/50 text-slate-300">
+                    <tr>
+                        <th class="px-6 py-4">Feature Name</th>
+                        <th class="px-6 py-4">PSI Score</th>
+                        <th class="px-6 py-4">Reference Mean</th>
+                        <th class="px-6 py-4">Production Mean</th>
+                        <th class="px-6 py-4">Status Flag</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+    
+                    <tr class="hover:bg-slate-800/20">
+                        <td class="px-6 py-4 font-semibold text-slate-200">age</td>
+                        <td class="px-6 py-4 text-cyan-400 font-mono">0.6474</td>
+                        <td class="px-6 py-4 text-slate-400">39.97</td>
+                        <td class="px-6 py-4 text-slate-400">49.40</td>
+                        <td class="px-6 py-4 font-bold">🚨 SEVERE DRIFT</td>
+                    </tr>
+        
+                    <tr class="hover:bg-slate-800/20">
+                        <td class="px-6 py-4 font-semibold text-slate-200">balance</td>
+                        <td class="px-6 py-4 text-cyan-400 font-mono">0.2760</td>
+                        <td class="px-6 py-4 text-slate-400">10519.73</td>
+                        <td class="px-6 py-4 text-slate-400">9019.73</td>
+                        <td class="px-6 py-4 font-bold">🚨 SEVERE DRIFT</td>
+                    </tr>
+        
+                    <tr class="hover:bg-slate-800/20">
+                        <td class="px-6 py-4 font-semibold text-slate-200">duration</td>
+                        <td class="px-6 py-4 text-cyan-400 font-mono">1.0654</td>
+                        <td class="px-6 py-4 text-slate-400">197.69</td>
+                        <td class="px-6 py-4 text-slate-400">523.58</td>
+                        <td class="px-6 py-4 font-bold">🚨 SEVERE DRIFT</td>
+                    </tr>
+        
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-8 bg-amber-950/20 border border-amber-900/50 rounded-2xl p-6">
+            <h4 class="text-amber-400 font-bold flex items-center gap-2">
+                ⚠️ MLOps Retraining Recommendation Triggered
+            </h4>
+            <p class="text-amber-300/80 text-sm mt-2">
+                A massive drift has been identified in the last contact 'duration' and account 'balance' distributions (PSI > 0.25). 
+                An automated retraining trigger has been dispatched to reload fresh transaction segments and re-estimate operational target thresholds.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+    

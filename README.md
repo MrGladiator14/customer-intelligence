@@ -12,6 +12,7 @@ Leveraging a modular multi-container architecture fronted by a single-origin rev
 ## Live Deployment
 
 The platform is deployed and running on Azure Container Apps:
+* **demo URL**: https://www.loom.com/share/011371ba99f0447e9c299dbaf7236f31
 * **Live Application URL**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/)
 * **MLflow Tracing & Observability Portal**: [https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces](https://nginx-ui.blackmushroom-f84087ba.centralindia.azurecontainerapps.io/mlflow/#/experiments/1/traces)
 
